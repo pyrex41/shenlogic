@@ -187,6 +187,15 @@
 (define shenlogic.chc.query
   Artifact Name -> (@s Artifact (n->string 10) (shenlogic.chc.v2-query Name)))
 
+(define shenlogic.chc.query-fact
+  Artifact Relation Args Expected Constructors NameMap ->
+    (@s Artifact (n->string 10)
+        "(declare-rel sl_query ())" (n->string 10)
+        "(rule (=> (" (shenlogic.chc.v2-relation-name Relation NameMap) " "
+        (shenlogic.chc.v2-values (append Args [Expected]) [] Constructors [] NameMap)
+        ") sl_query))" (n->string 10)
+        "(query sl_query)" (n->string 10)))
+
 (define shenlogic.chc.v2-datatype
   Constructors ->
     (@s "(declare-datatypes () ((Value "
