@@ -1,274 +1,443 @@
-\\ Canonical relational Rule IR.
+\\ ShenLogic 0.2 Rule IR.  All lowering is list based, hence deterministic.
 
 (define rules.compile
   [program Definitions] ->
     (let Names (map (/. D (shenlogic.ast.definition-name D)) Definitions)
-      [theory
-        (rules.declarations Definitions)
-        (rules.definitions Definitions Names)
-        (rules.sccs Definitions Names)]))
+      (let Rules (rules.compile-definitions Definitions Names)
+        [theory [value-signature (rules.value-signature Definitions)]
+                (rules.relations Definitions)
+                Rules
+                (rules.sccs Definitions Names)
+                [name-map (rules.name-map Names)]]))
+  X -> (error [sl-rules-invalid-program X]))
 
-(define rules.declarations
+(define rules.value-signature
+  Program -> (rules.value-signature-with Program
+    [[constructor int int 1] [constructor true true 0]
+     [constructor false false 0] [constructor symbol symbol 1]
+     [constructor string string 1] [constructor nil nil 0]
+     [constructor cons cons 2]]))
+
+(define rules.value-signature-with
+  [program Definitions] Acc ->
+    (rules.signature-definitions Definitions Acc)
+  _ Acc -> Acc)
+
+(define rules.signature-definitions
+  [] Acc -> (reverse Acc)
+  [[definition _ _ Clauses _] | Ds] Acc ->
+    (rules.signature-definitions Ds (rules.signature-clauses Clauses Acc)))
+
+(define rules.signature-clauses
+  [] Acc -> Acc
+  [[clause _ Ps _ _] | Cs] Acc ->
+    (rules.signature-clauses Cs (rules.signature-patterns Ps Acc)))
+
+(define rules.signature-patterns
+  [] Acc -> Acc
+  [P | Ps] Acc ->
+    (let T (rules.pattern-tag P)
+      (if (= T none)
+          (rules.signature-patterns Ps Acc)
+          (let A (rules.pattern-arity P)
+            (if (rules.has-constructor T Acc)
+                (rules.signature-patterns Ps Acc)
+                (rules.signature-patterns Ps
+                  (cons [constructor T T A] Acc)))))))
+
+(define rules.pattern-tag
+  P -> (if (cons? P)
+           (if (= (hd P) cons) cons
+               (if (or (= (hd P) ctor) (= (hd P) constructor))
+                   (hd (tl P)) cons))
+           (if (= P []) nil none)))
+
+(define rules.pattern-arity
+  P -> (if (cons? P)
+           (if (= (hd P) cons) 2
+               (if (or (= (hd P) ctor) (= (hd P) constructor))
+                   (length (hd (tl (tl P)))) 2))
+           0))
+
+(define rules.has-constructor
+  _ [] -> false
+  T [[constructor T _ _] | _] -> true
+  T [_ | Cs] -> (rules.has-constructor T Cs))
+
+(define rules.name-map
   [] -> []
-  [[definition Name _ _ Arity] | Ds] ->
-    [[relation Name (rules.sorts Arity) value] | (rules.declarations Ds)])
+  [N | Ns] -> [[N N] | (rules.name-map Ns)])
 
+(define rules.relations
+  [] -> []
+  [[definition N _ _ A] | Ds] ->
+    [[relation N (rules.sorts A) value] | (rules.relations Ds)])
 (define rules.sorts
   0 -> []
   N -> [value | (rules.sorts (- N 1))])
 
-(define rules.definitions
-  [] _ -> []
-  [[definition Name _ Clauses Arity] | Ds] Names ->
-    (append (rules.clauses Name Clauses Arity Names [] 0)
-            (rules.definitions Ds Names)))
-
-(define rules.clauses
-  _ [] _ _ _ _ -> []
-  Name [[clause Index Patterns Guard Body] | Cs] Arity Names Prior Counter ->
-    (let Args (rules.args Name Arity 0)
-      (let Matched (rules.patterns Patterns Args [] [] Args)
-        (let Env (hd (tl Matched))
-          (let PatternPremises (hd (tl (tl Matched)))
-            (let Bound (hd (tl (tl (tl Matched))))
-              (let Compiled (rules.expr Body Names Env Counter)
-                (let Term (hd (tl Compiled))
-                  (let Calls (hd (tl (tl Compiled)))
-                    (let MoreBound (hd (tl (tl (tl Compiled))))
-                      (let Next (hd (tl (tl (tl (tl Compiled)))))
-                        (let Guarded (rules.guard Guard Names Env Next)
-                          (let GuardPremises (hd (tl Guarded))
-                            (let GuardBound (hd (tl (tl Guarded)))
-                              (let Next2 (hd (tl (tl (tl Guarded))))
-                                (let Rule [rule
-                                            (intern (cn (str Name) (cn "_" (str Index))))
-                                            Name Args
-                                            (rules.unique (append Args (append Bound (append MoreBound GuardBound))))
-                                            (append (rules.priority Prior Args)
-                                              (append PatternPremises
-                                                (append GuardPremises Calls)))
-                                            Term]
-                                  [Rule | (rules.clauses Name Cs Arity Names
-                                            [[clause Index Patterns Guard Body] | Prior]
-                                            Next2)]))))))))))))))))
-
-(define rules.args
-  _ 0 _ -> []
-  Name N I ->
-    [(intern (cn (str Name) (cn "_a" (str I)))) |
-      (rules.args Name (- N 1) (+ I 1))])
-
-(define rules.patterns
-  [] [] Env Premises Bound -> [state Env (reverse Premises) Bound]
-  [P | Ps] [A | As] Env Premises Bound ->
-    (let R (rules.pattern P A Env Premises Bound)
-      (rules.patterns Ps As (hd (tl R)) (hd (tl (tl R)))
-        (hd (tl (tl (tl R))))))
-  _ _ Env Premises Bound -> [state Env [[invalid-pattern-arity] | Premises] Bound])
-
-(define rules.pattern
-  P A Env Premises Bound ->
-    (if (= P _)
-        [state Env Premises Bound]
-        (if (variable? P)
-            (let Found (rules.lookup P Env)
-              (if (= Found not-found)
-                  [state [[P A] | Env] Premises Bound]
-                  [state Env [[= A (hd (tl Found))] | Premises] Bound]))
-        (if (cons? P)
-            (let Vars (rules.pattern-vars P [])
-              [state (rules.bind-pattern-vars Vars Env)
-                     [[match P A] | Premises]
-                     (append Vars Bound)])
-            [state Env [[= A P] | Premises] Bound]))))
-
-(define rules.pattern-vars
-  X Acc ->
-    (if (= X _)
-        Acc
-        (if (variable? X)
-            (if (element? X Acc) Acc [X | Acc])
-            (if (cons? X) (rules.pattern-vars-list X Acc) Acc))))
-
-(define rules.pattern-vars-list
-  [] Acc -> Acc
-  [X | Xs] Acc -> (rules.pattern-vars-list Xs (rules.pattern-vars X Acc)))
-
-(define rules.bind-pattern-vars
-  [] Env -> Env
-  [X | Xs] Env ->
-    (rules.bind-pattern-vars Xs
-      (if (= (rules.lookup X Env) not-found) [[X X] | Env] Env)))
-
-(define rules.guard
-  none _ _ Counter -> [guarded [] [] Counter]
-  [some G] Names Env Counter ->
-    (let C (rules.expr G Names Env Counter)
-      [guarded [[constraint (hd (tl C))] | (hd (tl (tl C)))]
-               (hd (tl (tl (tl C))))
-               (hd (tl (tl (tl (tl C)))))]))
-
-(define rules.expr
-  E Names Env Counter ->
-    (if (variable? E)
-        (let Found (rules.lookup E Env)
-          [compiled (if (= Found not-found) E (hd (tl Found))) [] [] Counter])
-        (if (cons? E)
-            (rules.application (hd E) (tl E) Names Env Counter)
-            [compiled E [] [] Counter])))
-
-(define rules.application
-  Op Args Names Env Counter ->
-    (let Many (rules.expressions Args Names Env Counter [] [] [])
-      (let Terms (hd (tl Many))
-        (let Premises (hd (tl (tl Many)))
-          (let Bound (hd (tl (tl (tl Many))))
-            (let Next (hd (tl (tl (tl (tl Many)))))
-              (if (element? Op Names)
-                  (let Result (intern (cn "R" (str Next)))
-                    [compiled Result
-                      (append Premises [[call Op Terms Result]])
-                      [Result | Bound] (+ Next 1)])
-                  [compiled (rules.primitive Op Terms) Premises Bound Next])))))))
-
-(define rules.expressions
-  [] _ _ Counter RevTerms Premises Bound ->
-    [many (reverse RevTerms) Premises Bound Counter]
-  [E | Es] Names Env Counter RevTerms Premises Bound ->
-    (let C (rules.expr E Names Env Counter)
-      (rules.expressions Es Names Env
-        (hd (tl (tl (tl (tl C)))))
-        [(hd (tl C)) | RevTerms]
-        (append Premises (hd (tl (tl C))))
-        (append Bound (hd (tl (tl (tl C))))))))
-
-(define rules.primitive
-  + [A B] -> [add A B]
-  - [A B] -> [sub A B]
-  * [A B] -> [mul A B]
-  = [A B] -> [eq A B]
-  < [A B] -> [lt A B]
-  > [A B] -> [gt A B]
-  <= [A B] -> [le A B]
-  >= [A B] -> [ge A B]
-  if [C T F] -> [ite C T F]
-  Op Args -> [app Op Args])
-
-(define rules.priority
-  [] _ -> []
-  [C | Cs] Args -> (append (rules.exclusion C Args) (rules.priority Cs Args)))
-
-(define rules.exclusion
-  [clause Index [P] none _] [A] ->
-    (if (or (= P _) (variable? P))
-        [[constraint false]]
-        (if (cons? P)
-            [[not-applicable Index [P] [A] none]]
-            [[!= A P]]))
-  [clause Index Patterns none _] Args ->
-    (if (rules.irrefutable-patterns? Patterns [])
-        [[constraint false]]
-        [[not-applicable Index Patterns Args none]])
-  [clause Index Patterns Guard _] Args ->
-    [[not-applicable Index Patterns Args Guard]])
-
-(define rules.irrefutable-patterns?
-  [] _ -> true
-  [P | Ps] Seen ->
-    (if (= P _)
-        (rules.irrefutable-patterns? Ps Seen)
-        (if (variable? P)
-            (if (element? P Seen) false
-                (rules.irrefutable-patterns? Ps [P | Seen]))
-            false)))
-
-(define rules.pattern-exclusion
-  [] [] -> [[constraint false]]
-  [P | Ps] [A | As] ->
-    (if (or (= P _) (variable? P))
-        (rules.pattern-exclusion Ps As)
-        [[!= A P]])
-  _ _ -> [[constraint true]])
-
+\\ [rs Premises Bound Env Counter Term].
+(define rules.rs
+  P B E C T -> [rs P B E C T])
+(define rules.rs-p [rs P _ _ _ _] -> P)
+(define rules.rs-b [rs _ B _ _ _] -> B)
+(define rules.rs-e [rs _ _ E _ _] -> E)
+(define rules.rs-c [rs _ _ _ C _] -> C)
+(define rules.rs-t [rs _ _ _ _ T] -> T)
+(define rules.rs-take
+  [rs P B E C _] T -> [rs P B E C T])
+(define rules.rs-env
+  [rs P B _ C T] E -> [rs P B E C T])
+(define rules.rs-counter
+  [rs P B E _ T] C -> [rs P B E C T])
+(define rules.rs-prem
+  S X -> [rs (append (rules.rs-p S) [X]) (rules.rs-b S)
+              (rules.rs-e S) (rules.rs-c S) (rules.rs-t S)])
+(define rules.rs-bound
+  S X -> (if (element? X (rules.rs-b S)) S
+             [rs (rules.rs-p S) (append (rules.rs-b S) [X])
+                 (rules.rs-e S) (rules.rs-c S) (rules.rs-t S)]))
 (define rules.lookup
   _ [] -> not-found
   X [[X V] | _] -> [found V]
-  X [_ | Rest] -> (rules.lookup X Rest))
+  X [_ | Xs] -> (rules.lookup X Xs))
+(define rules.term
+  X E -> (let F (rules.lookup X E)
+           (if (variable? X)
+               (if (= F not-found) [v-var X] (hd (tl F)))
+               (if (number? X) [v-int [i-lit X]]
+                   (if (string? X) [v-string X]
+                       (if (= X true) v-true
+                           (if (= X false) v-false [v-symbol X])))))))
+(define rules.fresh
+  Prefix C -> (intern (cn Prefix (str C))))
 
+\\ Pattern matching returns [pm Success FailureStates].
+(define rules.match-pattern
+  P V S ->
+    (if (= P _)
+        [pm S []]
+        (if (variable? P)
+            (let F (rules.lookup P (rules.rs-e S))
+              (if (= F not-found)
+                  [pm (rules.bind S P V) []]
+                  (let Old (hd (tl F))
+                    [pm S [[rs (append (rules.rs-p S)
+                                        [[value-neq Old V]])
+                                     (rules.rs-b S) (rules.rs-e S)
+                                     (rules.rs-c S) (rules.rs-t S)]]])))
+        (if (or (number? P) (string? P) (= P true) (= P false))
+            (let T (rules.term P [])
+              [pm (rules.rs-prem S [value-eq V T])
+                  [[rs (append (rules.rs-p S) [[value-neq V T]])
+                       (rules.rs-b S) (rules.rs-e S) (rules.rs-c S)
+                       (rules.rs-t S)]]])
+        (if (cons? P)
+            (let Tag (rules.pattern-tag P)
+              (let Fields (rules.pattern-fields P)
+                (rules.match-constructor Tag Fields V S)))
+            (let T (rules.term P [])
+              [pm (rules.rs-prem S [value-eq V T])
+                  [[rs (append (rules.rs-p S) [[value-neq V T]])
+                       (rules.rs-b S) (rules.rs-e S) (rules.rs-c S)
+                       (rules.rs-t S)]]]))))))
+
+(define rules.bind
+  S X V -> (let F (rules.lookup X (rules.rs-e S))
+            (if (= F not-found)
+                [rs (rules.rs-p S) (rules.rs-b S)
+                    (append (rules.rs-e S) [[X V]])
+                    (rules.rs-c S) (rules.rs-t S)] S)))
+(define rules.pattern-fields
+  P -> (if (= (hd P) cons)
+           [(hd (tl P)) (hd (tl (tl P)))]
+           (if (or (= (hd P) ctor) (= (hd P) constructor))
+               (hd (tl (tl P))) [(hd P) (tl P)])))
+
+(define rules.match-patterns
+  [] [] S -> [pmany [S] []]
+  [P | Ps] [V | Vs] S ->
+    (let M (rules.match-pattern P V S)
+      (let R (rules.match-patterns Ps Vs (hd (tl M)))
+        [pmany (hd (tl R)) (append (hd (tl (tl M))) (hd (tl (tl R))))]))
+  _ _ S -> [pmany [S] []])
+
+(define rules.match-constructor
+  Tag Patterns V S ->
+    (let C (rules.rs-c S)
+      (let Fields (rules.make-fields Patterns C)
+        (let D (rules.rs-prem S [decompose V Tag Fields])
+          (let B (rules.add-fields D Fields)
+            (let M (rules.match-patterns Patterns Fields B)
+              [pm (hd (tl M))
+                  (cons (rules.rs-prem S [not-tag V Tag])
+                        (hd (tl (tl M))))]))))))
+(define rules.make-fields
+  [] _ -> []
+  [_ | Ps] C -> [[v-var (rules.fresh "M" (+ C (length Ps)))] |
+                 (rules.make-fields Ps C)])
+(define rules.add-fields
+  S [] -> S
+  [[v-var X] | Xs] S ->
+    (rules.add-fields (rules.rs-bound S [v-var X]) Xs)
+  [_ | Xs] S -> (rules.add-fields S Xs))
+
+\\ Expression compiler returns a list of states and is strict by recursive
+\\ argument traversal.  Boolean expressions split into true/false paths.
+(define rules.expr
+  E S Names ->
+    (if (variable? E) [(rules.rs-take S (rules.term E (rules.rs-e S)))]
+        (if (or (number? E) (string? E) (= E true) (= E false))
+            [(rules.rs-take S (rules.term E (rules.rs-e S)))]
+        (if (cons? E) (rules.app (hd E) (tl E) S Names)
+            [(rules.rs-take S (rules.term E (rules.rs-e S)))]))))
+
+(define rules.app
+  if [C T F] S Ns -> (let B (rules.bool C S Ns)
+                      (append (rules.expr-list [T] (hd (tl B)) Ns)
+                              (rules.expr-list [F] (hd (tl (tl B))) Ns)))
+  let [X A B] S Ns -> (let Q (rules.expr A S Ns)
+                        (rules.let-list X B Q Ns))
+  and [A B] S Ns -> (let Q (rules.bool A S Ns)
+                      (append (map (/. X (rules.rs-take X v-false))
+                                   (hd (tl (tl Q))))
+                              (rules.expr-list [B] (hd (tl Q)) Ns)))
+  or [A B] S Ns -> (let Q (rules.bool A S Ns)
+                     (append (map (/. X (rules.rs-take X v-true)) (hd (tl Q)))
+                             (rules.expr-list [B] (hd (tl (tl Q))) Ns)))
+  cons [A B] S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
+                       (map (/. X (rules.rs-take X
+                         [v-ctor cons (rules.arg-values X)])) (hd (tl Q))))
+  list Xs S Ns -> (rules.list-expr Xs S Ns)
+  + [A B] S Ns -> (rules.int-expr + A B S Ns)
+  - [A B] S Ns -> (rules.int-expr - A B S Ns)
+  * [A B] S Ns -> (rules.int-expr * A B S Ns)
+  = [A B] S Ns -> (rules.bool-expr = A B S Ns)
+  neq [A B] S Ns -> (rules.bool-expr neq A B S Ns)
+  < [A B] S Ns -> (rules.bool-expr < A B S Ns)
+  > [A B] S Ns -> (rules.bool-expr > A B S Ns)
+  <= [A B] S Ns -> (rules.bool-expr <= A B S Ns)
+  >= [A B] S Ns -> (rules.bool-expr >= A B S Ns)
+  do Xs S Ns -> (rules.do-expr Xs S Ns)
+  Op Args S Ns -> (if (element? Op Ns)
+                       (rules.call Op Args S Ns)
+                       (rules.constructor Op Args S Ns)))
+
+(define rules.arg-values
+  [rs _ _ _ _ V] -> [V])
+(define rules.expr-list
+  [] Ss _ -> Ss
+  [E | Es] Ss Ns -> (let Q (rules.expr-list-one E Ss Ns)
+                     (rules.expr-list Es (hd (tl Q)) Ns)))
+(define rules.expr-list-one
+  _ [] _ -> [many [] []]
+  E [S | Ss] Ns -> (let Q (rules.expr E S Ns)
+                    (let R (rules.expr-list-one E Ss Ns)
+                      [many (append Q (hd (tl R))) []])))
+(define rules.let-list
+  _ _ [] _ -> []
+  X B [S | Ss] Ns -> (append (rules.expr B
+                              (rules.rs-env S (cons [X (rules.rs-t S)]
+                                                    (rules.rs-e S))) Ns)
+                            (rules.let-list X B Ss Ns)))
+
+(define rules.scalar
+  + A B -> [i-add A B]
+  - A B -> [i-sub A B]
+  * A B -> [i-mul A B])
+(define rules.int
+  [v-int X] -> X
+  [v-var X] -> [i-var X]
+  X -> [i-lit X])
+(define rules.int-expr
+  Op A B S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
+                  (map (/. X (rules.rs-take X
+                    [v-int (rules.scalar Op (rules.int (hd (rules.arg-values X)))
+                                           (rules.int (hd (rules.arg-values X))))]))
+                       (hd (tl Q)))))
+(define rules.bool-expr
+  Op A B S Ns -> (let Q (rules.bool [Op A B] S Ns)
+                  (append (hd (tl Q)) (hd (tl (tl Q))))))
+
+(define rules.bool
+  true S _ -> [bool [S] []]
+  false S _ -> [bool [] [S]]
+  [and A B] S Ns -> (let X (rules.bool A S Ns)
+                     (let Y (rules.bool-list B (hd (tl X)) Ns)
+                       [bool (hd (tl Y))
+                             (append (hd (tl (tl X))) (hd (tl (tl Y))))]))
+  [or A B] S Ns -> (let X (rules.bool A S Ns)
+                    (let Y (rules.bool-list B (hd (tl (tl X))) Ns)
+                      [bool (append (hd (tl X)) (hd (tl Y)))
+                            (hd (tl (tl Y)))]))
+  [= A B] S Ns -> (rules.compare = A B S Ns)
+  [neq A B] S Ns -> (rules.compare neq A B S Ns)
+  [< A B] S Ns -> (rules.compare < A B S Ns)
+  [> A B] S Ns -> (rules.compare > A B S Ns)
+  [<= A B] S Ns -> (rules.compare <= A B S Ns)
+  [>= A B] S Ns -> (rules.compare >= A B S Ns)
+  E S Ns -> (let Q (rules.expr E S Ns)
+             (rules.bool-fan Q)))
+(define rules.bool-list
+  _ [] _ -> [bool [] []]
+  E [S | Ss] Ns -> (let Q (rules.bool E S Ns)
+                    (let R (rules.bool-list E Ss Ns)
+                      [bool (append (hd (tl Q)) (hd (tl R)))
+                            (append (hd (tl (tl Q))) (hd (tl (tl R))))])))
+(define rules.bool-fan
+  [] -> [bool [] []]
+  [S | Ss] -> (let R (rules.bool-fan Ss)
+               [bool (cons (rules.rs-prem S [value-eq (rules.rs-t S) v-true])
+                           (hd (tl R)))
+                     (cons (rules.rs-prem S [value-neq (rules.rs-t S) v-true])
+                           (hd (tl (tl R))))]))
+(define rules.compare
+  Op A B S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
+                  (let Out (hd (tl Q))
+                    [bool (map (/. X (rules.rs-prem X
+                                  (if (= Op =) [value-eq (rules.rs-t X) (rules.rs-t X)]
+                                      [int-test Op (rules.int (rules.rs-t X))
+                                                 (rules.int (rules.rs-t X))]))) Out)
+                          []])))
+
+(define rules.call
+  Op Args S Ns -> (rules.call-args Op Args S Ns []))
+(define rules.call-args
+  Op [] S _ Rev ->
+    (let R (rules.fresh "R" (rules.rs-c S))
+      (let Q (rules.rs-counter (rules.rs-bound S [v-var R])
+                               (+ (rules.rs-c S) 1))
+        [(rules.rs-take (rules.rs-prem Q [call Op (reverse Rev) [v-var R]])
+                        [v-var R])]))
+  Op [A | As] S Ns Rev ->
+    (let Q (rules.expr A S Ns)
+      (rules.call-args-list Op As Q Ns Rev)))
+(define rules.call-args-list
+  _ _ [] _ _ -> []
+  Op As [S | Ss] Ns Rev ->
+    (append (rules.call-args Op As S Ns [(rules.rs-t S) | Rev])
+            (rules.call-args-list Op As Ss Ns Rev)))
+(define rules.call-list
+  _ [] -> []
+  Op [S | Ss] -> (let R (rules.fresh "R" (rules.rs-c S))
+                    (let Q (rules.rs-counter (rules.rs-bound S [v-var R])
+                                             (+ (rules.rs-c S) 1))
+                    (let P (rules.rs-prem Q [call Op (rules.arg-values Q) [v-var R]])
+                      [(rules.rs-take P [v-var R]) | (rules.call-list Op Ss)]))))
+(define rules.constructor
+  Tag Args S Ns -> (let Q (rules.expr-list Args [S] Ns)
+                    (map (/. X (rules.rs-take X
+                               [v-ctor Tag (rules.arg-values X)])) (hd (tl Q)))))
+(define rules.list-expr
+  [] S _ -> [(rules.rs-take S [v-ctor nil []])]
+  [E | Es] S Ns -> (let H (rules.expr E S Ns)
+                    (let T (rules.list-expr Es S Ns)
+                      (map (/. X (rules.rs-take X
+                                [v-ctor cons [(rules.rs-t X) (rules.rs-t X)]]))
+                           (append H T)))))
+(define rules.do-expr
+  [] S _ -> [(rules.rs-take S v-true)]
+  [E] S Ns -> (rules.expr E S Ns)
+  [E | Es] S Ns -> (rules.do-expr Es S Ns))
+
+\\ Ordered clauses and explicit fallback paths.
+(define rules.compile-definitions
+  [] _ -> []
+  [[definition Name _ Clauses Arity] | Ds] Ns ->
+    (let Args (rules.args Name Arity 0)
+      (let Start [rs [] (rules.arg-bounds Args) [] 0 v-true]
+        (let Leaves (rules.clause-chain Name Clauses Args Start Ns)
+          (if (> (length Leaves) 4096)
+              (error [sl-rules-too-many-paths Name (length Leaves)])
+              (append (rules.make-rules Name Leaves Args 0)
+                      (rules.compile-definitions Ds Ns)))))))
+(define rules.args
+  _ 0 _ -> []
+  N A I -> [(rules.fresh (cn (str N) "_a") I) |
+            (rules.args N (- A 1) (+ I 1))])
+(define rules.arg-bounds
+  [] -> []
+  [X | Xs] -> [[v-var X] | (rules.arg-bounds Xs)])
+(define rules.clause-chain
+  _ [] _ _ _ -> []
+  Name [[clause I Ps G B] | Cs] Args S Ns ->
+    (let M (rules.match-patterns Ps (rules.arg-terms Args) S)
+      (let Good (rules.guard G (hd (hd (tl M))) Ns)
+        (append (rules.leaves I (rules.expr B (hd (tl Good)) Ns))
+                (rules.clause-fallback Name Cs Args
+                  (append (hd (tl (tl M))) (hd (tl (tl Good)))) Ns)))))
+(define rules.arg-terms
+  [] -> []
+  [X | Xs] -> [[v-var X] | (rules.arg-terms Xs)])
+(define rules.clause-fallback
+  _ _ _ [] _ -> []
+  Name Cs Args [S | Ss] Ns ->
+    (append (rules.clause-chain Name Cs Args S Ns)
+            (rules.clause-fallback Name Cs Args Ss Ns)))
+(define rules.guard
+  none S _ -> [guard S []]
+  true S _ -> [guard S []]
+  [some G] S Ns -> (rules.guard-expr G S Ns)
+  G S Ns -> (rules.guard-expr G S Ns))
+(define rules.guard-expr
+  _ S Ns -> (let B (rules.bool _ S Ns)
+             [guard (hd (tl B)) (hd (tl (tl B)))]))
+(define rules.leaves
+  _ [] -> []
+  I [S | Ss] -> [[leaf I S] | (rules.leaves I Ss)])
+(define rules.make-rules
+  _ [] _ _ -> []
+  Name [[leaf I S] | Ls] Args P ->
+    (let Id (intern (cn (str Name) (cn "_c" (cn (str I) (cn "_p" (str P))))))
+      [[rule Id Name I P (rules.arg-terms Args)
+             (rules.unique (rules.rs-b S)) (rules.rs-p S) (rules.rs-t S)] |
+       (rules.make-rules Name Ls Args (+ P 1))]))
 (define rules.unique
   [] -> []
-  [X | Xs] -> (if (element? X Xs) (rules.unique Xs)
-                  [X | (rules.unique Xs)]))
+  [X | Xs] -> (if (element? X Xs) (rules.unique Xs) [X | (rules.unique Xs)]))
 
-\\ SCCs are computed from raw source calls so mutual recursion stays grouped.
+\\ Deterministic SCCs over raw source calls.
 (define rules.sccs
-  Definitions Names ->
-    (rules.scc-list Names (rules.adjacency Definitions Names) []))
-
+  Definitions Names -> (rules.scc-list Names (rules.adjacency Definitions Names) []))
 (define rules.adjacency
   [] _ -> []
-  [[definition Name _ Clauses _] | Ds] Names ->
-    [[edge Name (rules.calls Clauses Names)] | (rules.adjacency Ds Names)])
-
+  [[definition N _ Cs _] | Ds] Ns -> [[edge N (rules.calls Cs Ns)] |
+                                         (rules.adjacency Ds Ns)])
 (define rules.calls
-  X Names -> (rules.unique (rules.calls-walk X Names)))
-
-(define rules.calls-walk
+  X Ns -> (rules.unique (rules.walk X Ns)))
+(define rules.walk
   [] _ -> []
-  [F | Args] Names ->
-    (append (if (element? F Names) [F] [])
-            (rules.calls-walk-list Args Names))
+  [F | As] Ns -> (append (if (element? F Ns) [F] []) (rules.walk-list As Ns))
   _ _ -> [])
-
-(define rules.calls-walk-list
+(define rules.walk-list
   [] _ -> []
-  [X | Xs] Names -> (append (rules.calls-walk X Names)
-                            (rules.calls-walk-list Xs Names)))
-
+  [X | Xs] Ns -> (append (rules.walk X Ns) (rules.walk-list Xs Ns)))
 (define rules.scc-list
-  [] _ Acc -> (reverse Acc)
-  [N | Ns] Adj Acc ->
-    (let Forward (rules.reachable N Adj [])
-      (let Reverse (rules.reachable N (rules.reverse Adj) [])
-        (let Component (rules.intersection Forward Reverse)
-          (rules.scc-list (rules.minus Ns Component) Adj
-            [[scc Component] | Acc])))))
-
-(define rules.reachable
-  N Adj Seen ->
-    (if (element? N Seen) Seen
-        (rules.reachable-many (rules.neighbours N Adj) Adj [N | Seen])))
-
-(define rules.reachable-many
-  [] _ Seen -> Seen
-  [N | Ns] Adj Seen ->
-    (rules.reachable-many Ns Adj (rules.reachable N Adj Seen)))
-
-(define rules.neighbours
+  [] _ A -> (reverse A)
+  [N | Ns] Adj A -> (let F (rules.reach N Adj [])
+                      (let R (rules.reach N (rules.rev Adj) [])
+                        (let C (rules.inter F R)
+                          (rules.scc-list (rules.minus Ns C) Adj [[scc C] | A])))))
+(define rules.reach
+  N Adj Seen -> (if (element? N Seen) Seen
+                    (rules.reach-many (rules.neigh N Adj) Adj [N | Seen])))
+(define rules.reach-many
+  [] _ S -> S
+  [N | Ns] A S -> (rules.reach-many Ns A (rules.reach N A S)))
+(define rules.neigh
   _ [] -> []
-  N [[edge N Xs] | _] -> Xs
-  N [_ | Es] -> (rules.neighbours N Es))
-
-(define rules.reverse
-  Adj -> (rules.reverse-nodes Adj Adj []))
-
-(define rules.reverse-nodes
-  [] _ Acc -> Acc
-  [[edge N _] | Es] All Acc ->
-    (rules.reverse-nodes Es All [[edge N (rules.predecessors N All)] | Acc]))
-
-(define rules.predecessors
+  N [[edge N X] | _] -> X
+  N [_ | Xs] -> (rules.neigh N Xs))
+(define rules.rev
+  [] -> []
+  [[edge N _] | Xs] -> [[edge N (rules.pred N Xs)] | (rules.rev Xs)])
+(define rules.pred
   _ [] -> []
-  N [[edge F Xs] | Es] ->
-    (if (element? N Xs) [F | (rules.predecessors N Es)]
-        (rules.predecessors N Es)))
-
-(define rules.intersection
+  N [[edge M X] | Xs] -> (if (element? N X) [M | (rules.pred N Xs)]
+                           (rules.pred N Xs)))
+(define rules.inter
   [] _ -> []
-  [X | Xs] Ys -> (if (element? X Ys) [X | (rules.intersection Xs Ys)]
-                     (rules.intersection Xs Ys)))
-
+  [X | Xs] Y -> (if (element? X Y) [X | (rules.inter Xs Y)] (rules.inter Xs Y)))
 (define rules.minus
   [] _ -> []
-  [X | Xs] Ys -> (if (element? X Ys) (rules.minus Xs Ys)
-                     [X | (rules.minus Xs Ys)]))
+  [X | Xs] Y -> (if (element? X Y) (rules.minus Xs Y) [X | (rules.minus Xs Y)]))

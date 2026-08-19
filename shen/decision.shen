@@ -72,3 +72,28 @@
             (hd (tl D))
             (hd (tl (tl (tl D)))))
           (decision-compile-definitions Rest)))
+
+\\ 0.2 path API.  Rules lowering consumes these terminal records; keeping
+\\ the decision tree API above is useful to clients that render it.
+(define decision.path
+  Function Clause Path Patterns Guard Body ->
+    [path Function Clause Path Patterns Guard Body])
+
+(define decision.paths
+  [program Definitions] -> (decision-path-definitions Definitions))
+
+(define decision-path-definitions
+  [] -> []
+  [[definition Name _ Clauses _] | Ds] ->
+    (append (decision-path-clauses Name Clauses 0)
+            (decision-path-definitions Ds)))
+
+(define decision-path-clauses
+  _ [] _ -> []
+  Name [[clause I Patterns Guard Body] | Cs] N ->
+    [(decision.path Name I N Patterns Guard Body) |
+     (decision-path-clauses Name Cs (+ N 1))])
+
+\\ Explicit path-limit check shared by callers before expensive lowering.
+(define decision.path-limit?
+  Paths -> (<= (length Paths) 4096))
