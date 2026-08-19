@@ -81,6 +81,18 @@
           (sl-check "factorial-eval-5"
                     (= (sl-eval "examples/factorial.shen" "(factorial 5)")
                        [value 120]))
+          (sl-check "factorial-query-chc"
+                    (let R (shenlogic.query-file "examples/factorial.shen"
+                                                 "(factorial 5)" "120" "chc")
+                      (and (= (hd R) ok) (= (hd (tl R)) "chc"))))
+          (sl-check "query-rejects-open-value"
+                    (= (shenlogic.query-file "examples/factorial.shen"
+                                             "(factorial X)" "120" "chc")
+                       [error open-query-value]))
+          (sl-check "query-rejects-malformed-expression"
+                    (= (shenlogic.query-file "examples/factorial.shen"
+                                             "factorial" "120" "chc")
+                       [error malformed-query-expression]))
           (sl-check "factorial-eval-zero"
                     (= (sl-eval "examples/factorial.shen" "(factorial 0)")
                        [value 1]))
