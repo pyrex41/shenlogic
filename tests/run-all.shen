@@ -134,6 +134,10 @@
                     (certificate-test-bundle-rejects-artifact-edit))
           (sl-check "certificate-v2-rejects-missing-lowering"
                     (certificate-test-bundle-rejects-missing-lowering))
+          (sl-check "certificate-v2-rejects-duplicate-lowering"
+                    (certificate-test-bundle-rejects-duplicate-lowering))
+          (sl-check "certificate-v2-rejects-unknown-lowering"
+                    (certificate-test-bundle-rejects-unknown-lowering))
           (sl-check "certificate-v2-rejects-raw-source"
                     (certificate-test-bundle-rejects-raw-source))
           (sl-check "v2-nested-if-let-negative"

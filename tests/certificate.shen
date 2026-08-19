@@ -102,6 +102,25 @@
   [shenlogic-certificate V P VS D T C H [_ | Ss] NM] ->
     [shenlogic-certificate V P VS D T C H Ss NM])
 
+(define certificate-test-bundle-rejects-duplicate-lowering
+  -> (= (certificate-check
+          (certificate-test-bundle-duplicate-lowering (certificate-test-v2-bundle)))
+         [error invalid-lowering-coverage]))
+
+(define certificate-test-bundle-duplicate-lowering
+  [shenlogic-certificate V P VS D T C H [S | Ss] NM] ->
+    [shenlogic-certificate V P VS D T C H [S S | Ss] NM])
+
+(define certificate-test-bundle-rejects-unknown-lowering
+  -> (= (certificate-check
+          (certificate-test-bundle-unknown-lowering (certificate-test-v2-bundle)))
+         [error invalid-lowering-coverage]))
+
+(define certificate-test-bundle-unknown-lowering
+  [shenlogic-certificate V P VS D T C H S NM] ->
+    [shenlogic-certificate V P VS D T C H
+     [[lowering-step unknown [0] chc] | S] NM])
+
 (define certificate-test-bundle-rejects-raw-source
   -> (= (certificate-check
           (certificate-test-bundle-raw-source (certificate-test-v2-bundle)))
