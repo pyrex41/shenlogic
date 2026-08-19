@@ -11,6 +11,11 @@
         (if (= Errors []) [ok [program Definitions]] [errors (reverse Errors)])))
   X -> [errors [[sl-v000 X]]])
 
+(define shenlogic.validate.constructor-tags
+  [] -> []
+  [[constructor Source _ _] | Cs] ->
+    [Source | (shenlogic.validate.constructor-tags Cs)])
+
 (define shenlogic.validate.name-errors
   [] _ -> []
   [N | Ns] Seen ->
