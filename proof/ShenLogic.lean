@@ -248,7 +248,7 @@ theorem choose_first_sound (f : Functions) (v : Value) (c : Clause) (cs : List C
 
 inductive Premise where
   | call (name : String) (args : List Value) (result : Value)
-  | match (pattern : Pattern) (input : Value) (env : Bindings)
+  | matches (pattern : Pattern) (input : Value) (env : Bindings)
   | decompose (tag : String) (input : Value) (fields : List Value)
   | notTag (tag : String) (input : Value)
   | intTest (input : Value)
@@ -267,7 +267,7 @@ structure Rule where
 
 def PremiseSatisfied (f : Functions) (r : Relation) : Premise → Prop
   | .call n as v => r n as v
-  | .match p v ρ => Pattern.match p v = some ρ
+  | .matches p v ρ => Pattern.match p v = some ρ
   | .decompose tag input fields => input = .ctor tag fields
   | .notTag tag input => ∀ fields, input ≠ .ctor tag fields
   | .intTest input => ∃ n : Int, input = .int n
@@ -318,6 +318,37 @@ def FiniteDerivation (rules : List Rule) (f : Functions) (q : Rule) : Prop :=
 
 def LFP (rules : List Rule) (f : Functions) (n : String) (as : List Value) (v : Value) : Prop :=
   ∀ r : Relation, Closed rules r → r n as v
+
+mutual
+  inductive Derives (rules : List Rule) (f : Functions) : String → List Value → Value → Prop where
+    | apply (q : Rule) (hq : q ∈ rules)
+        (hp : ∀ p, p ∈ q.premises → PremiseDerives rules f p) :
+        Derives rules f q.function q.args q.result
+
+  inductive PremiseDerives (rules : List Rule) (f : Functions) : Premise → Prop where
+    | call (n : String) (as : List Value) (v : Value) :
+        Derives rules f n as v → PremiseDerives rules f (.call n as v)
+    | matches (p : Pattern) (v : Value) (ρ : Bindings) :
+        Pattern.match p v = some ρ → PremiseDerives rules f (.matches p v ρ)
+    | decompose (tag : String) (v : Value) (fields : List Value) :
+        v = .ctor tag fields → PremiseDerives rules f (.decompose tag v fields)
+    | notTag (tag : String) (v : Value) :
+        (∀ fields, v ≠ .ctor tag fields) → PremiseDerives rules f (.notTag tag v)
+    | intTest (v : Value) : (∃ n : Int, v = .int n) → PremiseDerives rules f (.intTest v)
+    | eval (e : Expr) (ρ : Bindings) (v : Value) :
+        ShenLogic.eval f ρ e = some v → PremiseDerives rules f (.eval e ρ v)
+    | equal (a b : Value) : a = b → PremiseDerives rules f (.equal a b)
+    | notEqual (a b : Value) : a ≠ b → PremiseDerives rules f (.notEqual a b)
+
+end
+
+def DerivesRelation (rules : List Rule) (f : Functions) : Relation :=
+  fun n as v => Derives rules f n as v
+
+theorem derives_step (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
+    (h : Derives rules f n as v) : ∃ q, q ∈ rules ∧ q.function = n ∧ q.args = as ∧ q.result = v := by
+  cases h with
+  | apply q hq hp => exact ⟨q, hq, rfl, rfl, rfl⟩
 
 theorem finite_derivation_sound (rules : List Rule) (f : Functions) (q : Rule)
     (h : FiniteDerivation rules f q) :
