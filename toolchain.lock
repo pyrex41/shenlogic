@@ -1,6 +1,6 @@
 shen-version 41.2
 host shen-go
-host-version 1.25
+host-version 1.25.0
 host-repository https://github.com/pyrex41/shen-go.git
 host-revision 77de117b139022300b598f4b0d88cc415f9b6b65
 bifrost-repository https://github.com/pyrex41/bifrost.git
