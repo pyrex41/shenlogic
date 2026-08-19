@@ -276,6 +276,7 @@
   ")" -> "_rp"
   "[" -> "_lb"
   "]" -> "_rb"
+  "_" -> "_under"
   C -> C)
 
 \\ ---------------------------------------------------------------------------
@@ -354,8 +355,6 @@
   [v-int I] Bound -> (shenlogic.thf.v2-int-valid? I Bound)
   v-true _ -> true
   v-false _ -> true
-  [v-true] _ -> true
-  [v-false] _ -> true
   [v-symbol S] Bound -> (shenlogic.thf.v2-symbol-valid? S Bound)
   [v-string S] Bound -> (shenlogic.thf.v2-string-valid? S Bound)
   [v-ctor _ Args] Bound -> (shenlogic.thf.v2-terms-valid? Args Bound)
@@ -490,30 +489,137 @@
 (define shenlogic.thf.v2-known-tag?
   _ [] -> false
   Tag [[constructor Tag _ _] | _] -> true
+  Tag [[constructor _ Tag _] | _] -> true
   Tag [_ | Cs] -> (shenlogic.thf.v2-known-tag? Tag Cs))
 
 (define shenlogic.thf.v2-output
   Constructors Relations Rules SCCs NameMap ->
+    (let Literals (shenlogic.thf.v2-literals Rules [])
     (@s "% ShenLogic typed value specification" (n->string 10)
       (shenlogic.thf.v2-value-decl)
       (shenlogic.thf.v2-constructor-decls Constructors NameMap)
       (shenlogic.thf.v2-relation-decls Relations NameMap)
+      (shenlogic.thf.v2-literal-decls Literals NameMap)
+      (shenlogic.thf.v2-literal-distinctness Literals NameMap)
       (shenlogic.thf.v2-constructor-axioms Constructors NameMap)
       (shenlogic.thf.v2-induction Constructors NameMap)
       (shenlogic.thf.v2-rules Rules Constructors NameMap)
-      (shenlogic.thf.v2-leastness SCCs Rules Relations Constructors NameMap)))
+      (shenlogic.thf.v2-leastness SCCs Rules Relations Constructors NameMap))))
+
+\\ Literal payloads are first-class individuals in THF.  Every emitted
+\\ constant therefore receives a declaration, and unequal payload literals
+\\ are axiomatized as unequal.  This keeps the model faithful to Shen's
+\\ symbol/string equality rather than relying on accidental model choices.
+(define shenlogic.thf.v2-literals
+  [] Acc -> (reverse Acc)
+  [[rule _ _ _ _ Args _ Premises Result] | Rs] Acc ->
+    (let A (shenlogic.thf.v2-literals-terms Args Acc)
+      (let B (shenlogic.thf.v2-literals-terms [Result] A)
+        (let C (shenlogic.thf.v2-literals-premises Premises B)
+          (shenlogic.thf.v2-literals Rs C)))))
+
+(define shenlogic.thf.v2-literals-terms
+  [] Acc -> Acc
+  [T | Ts] Acc ->
+    (shenlogic.thf.v2-literals-terms Ts
+      (shenlogic.thf.v2-literals-term T Acc)))
+
+(define shenlogic.thf.v2-literals-term
+  [v-symbol S] Acc -> (shenlogic.thf.v2-literal-add symbol S Acc)
+  [v-string S] Acc -> (shenlogic.thf.v2-literal-add string S Acc)
+  [v-ctor _ Args] Acc -> (shenlogic.thf.v2-literals-terms Args Acc)
+  _ Acc -> Acc)
+
+(define shenlogic.thf.v2-literals-premises
+  [] Acc -> Acc
+  [[call _ Args Result] | Ps] Acc ->
+    (shenlogic.thf.v2-literals-premises Ps
+      (shenlogic.thf.v2-literals-terms [Result | Args] Acc))
+  [[value-eq A B] | Ps] Acc ->
+    (shenlogic.thf.v2-literals-premises Ps
+      (shenlogic.thf.v2-literals-terms [A B] Acc))
+  [[value-neq A B] | Ps] Acc ->
+    (shenlogic.thf.v2-literals-premises Ps
+      (shenlogic.thf.v2-literals-terms [A B] Acc))
+  [[decompose V _ Fields] | Ps] Acc ->
+    (shenlogic.thf.v2-literals-premises Ps
+      (shenlogic.thf.v2-literals-terms [V | Fields] Acc))
+  [[not-tag V _] | Ps] Acc ->
+    (shenlogic.thf.v2-literals-premises Ps
+      (shenlogic.thf.v2-literals-terms [V] Acc))
+  [_ | Ps] Acc -> (shenlogic.thf.v2-literals-premises Ps Acc))
+
+(define shenlogic.thf.v2-literal-add
+  Kind S Acc -> (if (element? [Kind S] Acc) Acc (cons [Kind S] Acc)))
+
+(define shenlogic.thf.v2-literal-decls
+  [] _ -> ""
+  [[Kind S] | Ls] Map ->
+    (let Head (@s "sl_" (shenlogic.thf.v2-literal-prefix Kind) "_"
+      (shenlogic.thf.v2-safe S))
+      (@s "thf(" Head "_type,type," Head ": $i)." (n->string 10)
+        (shenlogic.thf.v2-literal-decls Ls Map))))
+
+(define shenlogic.thf.v2-literal-distinctness
+  Lits Map -> (shenlogic.thf.v2-literal-distinctness-kinds Lits Map))
+
+(define shenlogic.thf.v2-literal-distinctness-kinds
+  [] _ -> ""
+  [[Kind S] | Ls] Map ->
+    (@s (shenlogic.thf.v2-literal-distinctness-one Kind S Ls Map)
+      (shenlogic.thf.v2-literal-distinctness-kinds Ls Map)))
+
+(define shenlogic.thf.v2-literal-distinctness-one
+  _ _ [] _ -> ""
+  Kind S [[Kind T] | Ls] Map ->
+    (let A (@s "sl_" (shenlogic.thf.v2-literal-prefix Kind) "_"
+      (shenlogic.thf.v2-safe S))
+      (let B (@s "sl_" (shenlogic.thf.v2-literal-prefix Kind) "_"
+        (shenlogic.thf.v2-safe T))
+        (@s "thf(sl_literal_" (shenlogic.thf.v2-safe Kind) "_"
+          (shenlogic.thf.v2-safe S) "_neq_" (shenlogic.thf.v2-safe T)
+          ",axiom,(" A " != " B "))." (n->string 10)
+          (shenlogic.thf.v2-literal-distinctness-one Kind S Ls Map))))
+  Kind S [_ | Ls] Map ->
+    (shenlogic.thf.v2-literal-distinctness-one Kind S Ls Map))
+
+(define shenlogic.thf.v2-literal-prefix
+  symbol -> "sym"
+  string -> "str")
 
 (define shenlogic.thf.v2-value-decl
-  -> "thf(sl_value_type,type,value: $tType).\n")
+  -> (@s "thf(sl_value_type,type,value: $tType)." (n->string 10)))
 
 (define shenlogic.thf.v2-all-constructors
   Constructors ->
-    [[constructor int int 1]
-     [constructor true true 0]
-     [constructor false false 0]
-     [constructor symbol symbol 1]
-     [constructor string string 1] |
-     Constructors])
+    (shenlogic.thf.v2-add-builtin
+      [constructor int int 1]
+      (shenlogic.thf.v2-add-builtin
+        [constructor true true 0]
+        (shenlogic.thf.v2-add-builtin
+          [constructor false false 0]
+          (shenlogic.thf.v2-add-builtin
+            [constructor symbol symbol 1]
+            (shenlogic.thf.v2-add-builtin
+              [constructor string string 1]
+              (shenlogic.thf.v2-add-builtin
+                [constructor nil nil 0]
+                (shenlogic.thf.v2-add-builtin
+                  [constructor cons cons 2] Constructors))))))))
+
+(define shenlogic.thf.v2-add-builtin
+  [constructor Source Target Arity] Cs ->
+    (if (shenlogic.thf.v2-has-constructor? Source Target Cs)
+        Cs
+        [[constructor Source Target Arity] | Cs]))
+
+(define shenlogic.thf.v2-has-constructor?
+  _ _ [] -> false
+  Source Target [[constructor Source Target _] | _] -> true
+  Source Target [[constructor Source _ _] | _] -> true
+  Source Target [[constructor _ Target _] | _] -> true
+  Source Target [_ | Cs] ->
+    (shenlogic.thf.v2-has-constructor? Source Target Cs))
 
 (define shenlogic.thf.v2-constructor-decls
   Constructors Map ->
@@ -523,9 +629,10 @@
 (define shenlogic.thf.v2-constructor-decls-list
   [] _ -> ""
   [[constructor Source Target Arity] | Cs] Map ->
-    (@s "thf(sl_ctor_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Source Map)) "_type,type,"
-      (shenlogic.thf.v2-ctor-type Source Arity) ")." (n->string 10)
-      (shenlogic.thf.v2-constructor-decls-list Cs Map)))
+    (let Head (@s "sl_ctor_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Target Map)))
+      (@s "thf(" Head "_type,type," Head ": ("
+        (shenlogic.thf.v2-ctor-type Source Arity) "))." (n->string 10)
+      (shenlogic.thf.v2-constructor-decls-list Cs Map))))
 
 (define shenlogic.thf.v2-ctor-type
   int _ -> "$int > value"
@@ -546,9 +653,10 @@
 (define shenlogic.thf.v2-relation-decls
   [] _ -> ""
   [[relation Name Sorts value] | Rs] Map ->
-    (@s "thf(sl_rel_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Name Map))
-      "_type,type," (shenlogic.thf.v2-fun-type (+ 1 (length Sorts)) "$o") ")."
-      (n->string 10) (shenlogic.thf.v2-relation-decls Rs Map)))
+    (let Head (@s "sl_rel_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Name Map)))
+      (@s "thf(" Head "_type,type," Head ": ("
+        (shenlogic.thf.v2-fun-type (+ 1 (length Sorts)) "$o") "))."
+      (n->string 10) (shenlogic.thf.v2-relation-decls Rs Map))))
 
 (define shenlogic.thf.v2-constructor-axioms
   Constructors Map ->
@@ -572,7 +680,7 @@
           (shenlogic.thf.v2-typed-binders R (shenlogic.thf.v2-ctor-arg-type Source)) "] : ("
           (shenlogic.thf.v2-eq-term (shenlogic.thf.v2-apply-raw Target L Map)
             (shenlogic.thf.v2-apply-raw Target R Map)) " => "
-          (shenlogic.thf.v2-equalities L R) "))).\n"))))
+          (shenlogic.thf.v2-equalities L R) ")))." (n->string 10)))))
 
 (define shenlogic.thf.v2-disjoint
   [] _ -> ""
@@ -582,14 +690,14 @@
 
 (define shenlogic.thf.v2-disjoint-with
   _ [] _ -> ""
-  [constructor A _ ArityA] [[constructor B _ ArityB] | Cs] Map ->
-    (@s "thf(sl_ctor_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name A Map)) "_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name B Map))
+  [constructor A TargetA ArityA] [[constructor B TargetB ArityB] | Cs] Map ->
+    (@s "thf(sl_ctor_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name TargetA Map)) "_" (shenlogic.thf.v2-safe (shenlogic.thf.v2-name TargetB Map))
       "_disjoint,axiom,(! [" (shenlogic.thf.v2-disjoint-binders ArityA ArityB
         (shenlogic.thf.v2-ctor-arg-type A) (shenlogic.thf.v2-ctor-arg-type B))
       "] : (" (shenlogic.thf.v2-not-eq-term
-        (shenlogic.thf.v2-apply-raw A (shenlogic.thf.v2-vars ArityA 0 "X") Map)
-        (shenlogic.thf.v2-apply-raw B (shenlogic.thf.v2-vars ArityB 0 "Y") Map)) ")).\n"
-      (shenlogic.thf.v2-disjoint-with [constructor A A ArityA] Cs Map))
+        (shenlogic.thf.v2-apply-raw TargetA (shenlogic.thf.v2-vars ArityA 0 "X") Map)
+        (shenlogic.thf.v2-apply-raw TargetB (shenlogic.thf.v2-vars ArityB 0 "Y") Map)) ")))." (n->string 10)
+      (shenlogic.thf.v2-disjoint-with [constructor A TargetA ArityA] Cs Map))
   _ _ _ -> "")
 
 (define shenlogic.thf.v2-vars
@@ -634,8 +742,6 @@
   [v-int I] Bound Map -> (@s "(sl_ctor_int @ " (shenlogic.thf.v2-int I Bound Map) ")")
   v-true _ _ -> "sl_ctor_true"
   v-false _ _ -> "sl_ctor_false"
-  [v-true] _ _ -> "v_true"
-  [v-false] _ _ -> "v_false"
   [v-symbol S] Bound Map -> (@s "(sl_ctor_symbol @ "
     (shenlogic.thf.v2-symbol S Bound Map) ")")
   [v-string S] Bound Map -> (@s "(sl_ctor_string @ "
@@ -722,7 +828,16 @@
   X [_ | Ms] -> (shenlogic.thf.v2-name-find X Ms))
 
 (define shenlogic.thf.v2-safe
-  X -> (shenlogic.thf.clean (str X)))
+  X -> (if (string? X)
+          (shenlogic.thf.clean
+            (shenlogic.thf.drop-final-quote (tlstr (str X))))
+          (shenlogic.thf.clean (str X))))
+
+(define shenlogic.thf.drop-final-quote
+  "" -> ""
+  S -> (let T (tlstr S)
+         (if (= T "") ""
+             (cn (pos S 0) (shenlogic.thf.drop-final-quote T)))))
 
 (define shenlogic.thf.v2-disjoint-binders
   0 0 _ _ -> "Dummy:value"
@@ -747,7 +862,7 @@
       (shenlogic.thf.v2-bound-binders Bound) "] : ("
       (shenlogic.thf.v2-implication
         (shenlogic.thf.v2-premises Premises Bound Constructors Map [])
-        (shenlogic.thf.v2-call Function Args Result Bound Map [])) ")).\n"))
+        (shenlogic.thf.v2-call Function Args Result Bound Map [])) ")))." (n->string 10)))
 
 (define shenlogic.thf.v2-implication
   "$true" Q -> Q
@@ -806,6 +921,7 @@
 
 (define shenlogic.thf.v2-constructor-arity
   Tag [[constructor Tag _ Arity] | _] -> Arity
+  Tag [[constructor _ Tag Arity] | _] -> Arity
   Tag [_ | Cs] -> (shenlogic.thf.v2-constructor-arity Tag Cs)
   _ _ -> 0)
 
@@ -818,7 +934,7 @@
   Constructors Map ->
     (@s "thf(sl_value_induction,axiom,(! [P:(value > $o)] : (("
       (shenlogic.thf.v2-induction-closure
-        (shenlogic.thf.v2-all-constructors Constructors) Map "P") ") => (! [X:value] : (P @ X)))))).\n"))
+        (shenlogic.thf.v2-all-constructors Constructors) Map "P") ") => (! [X:value] : (P @ X)))))." (n->string 10)))
 
 (define shenlogic.thf.v2-induction-closure
   [] _ _ -> "$true"
@@ -849,7 +965,7 @@
         "] : (" (shenlogic.thf.v2-implication
           (shenlogic.thf.v2-scc-closures Names Rules Constructors Map Overrides)
           (shenlogic.thf.v2-containments Names Relations Map Overrides))
-        ")).\n" (shenlogic.thf.v2-leastness Ss Rules Relations Constructors Map))))
+        ")))." (n->string 10) (shenlogic.thf.v2-leastness Ss Rules Relations Constructors Map))))
 
 (define shenlogic.thf.v2-candidates
   [] _ -> []
