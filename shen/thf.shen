@@ -418,6 +418,12 @@
   _ _ _ -> false)
 
 (define shenlogic.thf.v2-int-op?
+  = -> true
+  != -> true
+  < -> true
+  > -> true
+  <= -> true
+  >= -> true
   eq -> true
   neq -> true
   lt -> true
@@ -922,6 +928,12 @@
           C)))
 
 (define shenlogic.thf.v2-int-test
+  = A B -> (shenlogic.thf.v2-eq-term A B)
+  != A B -> (shenlogic.thf.v2-not-eq-term A B)
+  < A B -> (@s "$less(" A "," B ")")
+  > A B -> (@s "$greater(" A "," B ")")
+  <= A B -> (@s "$lesseq(" A "," B ")")
+  >= A B -> (@s "$greatereq(" A "," B ")")
   eq A B -> (shenlogic.thf.v2-eq-term A B)
   neq A B -> (shenlogic.thf.v2-not-eq-term A B)
   lt A B -> (@s "$less(" A "," B ")")
