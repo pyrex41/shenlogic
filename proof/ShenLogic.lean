@@ -345,6 +345,33 @@ end
 def DerivesRelation (rules : List Rule) (f : Functions) : Relation :=
   fun n as v => Derives rules f n as v
 
+def ClosedF (rules : List Rule) (f : Functions) (r : Relation) : Prop :=
+  ∀ q, q ∈ rules → RuleSatisfied f r q → r q.function q.args q.result
+
+def LFPF (rules : List Rule) (f : Functions) (n : String) (as : List Value) (v : Value) : Prop :=
+  ∀ r, ClosedF rules f r → r n as v
+
+theorem derives_soundF (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
+    (h : Derives rules f n as v) : LFPF rules f n as v := by
+  let motive₁ := fun (n : String) (as : List Value) (v : Value) (_ : Derives rules f n as v) =>
+    ∀ r, ClosedF rules f r → r n as v
+  let motive₂ := fun (p : Premise) (_ : PremiseDerives rules f p) =>
+    ∀ r, ClosedF rules f r → PremiseSatisfied f r p
+  refine @Derives.rec rules f motive₁ motive₂ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ n as v h
+  · intro q hq hp ih r hc
+    apply hc q hq
+    intro p hpq
+    exact ih p hpq r hc
+  · intro n as v d ih r hc
+    exact ih r hc
+  · intro p v ρ hm r hc; exact hm
+  · intro tag v fields hv r hc; exact hv
+  · intro tag v hv r hc; exact hv
+  · intro v hv r hc; exact hv
+  · intro e ρ v he r hc; exact he
+  · intro a b he r hc; exact he
+  · intro a b he r hc; exact he
+
 theorem derives_step (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
     (h : Derives rules f n as v) : ∃ q, q ∈ rules ∧ q.function = n ∧ q.args = as ∧ q.result = v := by
   cases h with
