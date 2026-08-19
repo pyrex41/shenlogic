@@ -44,7 +44,7 @@
                     (if (= X false)
                         [ok v-false]
                         (if (= X [])
-                            [ok v-nil]
+                            [ok [v-ctor nil []]]
                             (if (cons? X)
                                 (shenlogic.workflow.closed-application X Constructors)
                                 [ok [v-symbol X]]))))))))
@@ -55,8 +55,8 @@
       (if (= (hd A) ok)
           (let B (shenlogic.workflow.closed-value T Constructors)
             (if (= (hd B) ok)
-                [ok [v-cons (hd (tl A)) (hd (tl B))]] B)) A))
-  [nil] _ -> [ok v-nil]
+                [ok [v-ctor cons [(hd (tl A)) (hd (tl B))]]] B)) A))
+  [nil] _ -> [ok [v-ctor nil []]]
   [ctor Tag Args] Constructors ->
     (shenlogic.workflow.closed-constructor Tag Args Constructors)
   [constructor Tag Args] Constructors ->
@@ -189,8 +189,9 @@
                                                 "chc") "chc" "thf")
                                        Model (shenlogic.translate-theory
                                                 CanonicalBackend Program Theory)
-                                       TheoryConstructors
+                                       ValueSignature
                                          (certificate-theory-value-signature Theory)
+                                       TheoryConstructors (hd (tl ValueSignature))
                                        NameMap (certificate-theory-name-map Theory)
                                        QueryForm (hd (tl QueryExpr))
                                        Name (hd QueryForm)
