@@ -1,11 +1,17 @@
-; ShenLogic typed evaluation graph v1
-(relation factorial$ (value value))
-(rule factorial_0
-  (when (= factorial_a0 0))
-  (derive (factorial$ factorial_a0 1))
+; ShenLogic typed evaluation graph v2
+(value-signature (constructors (constructor int int 1) (constructor true true 0) (constructor false false 0) (constructor symbol symbol 1) (constructor string string 1) (constructor nil nil 0) (constructor cons cons 2)))
+(relation factorial (value) value)
+(rule factorial_c0_p0 (function factorial) (clause 0) (path 0)
+  (args ((v-var factorial_a0)))
+  (bound ((v-var factorial_a0)))
+  (when (value-eq (v-var factorial_a0) (v-int (i-lit 0))))
+  (derive (factorial (v-var factorial_a0) (v-int (i-lit 1))))
 )
-(rule factorial_1
-  (when (and (!= factorial_a0 0) (factorial$ (- factorial_a0 1) R0)))
-  (derive (factorial$ factorial_a0 (* factorial_a0 R0)))
+(rule factorial_c1_p1 (function factorial) (clause 1) (path 1)
+  (args ((v-var factorial_a0)))
+  (bound ((v-var factorial_a0) (v-var R0)))
+  (when (and (value-neq (v-var factorial_a0) (v-int (i-lit 0))) (call factorial ((v-int (i-sub (i-var factorial_a0) (i-lit 1)))) (v-var R0))))
+  (derive (factorial (v-var factorial_a0) (v-int (i-mul (i-var factorial_a0) (i-var R0)))))
 )
-(least-scc (factorial$))
+(least-scc (factorial))
+(name-map ((factorial factorial)))

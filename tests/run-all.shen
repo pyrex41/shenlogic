@@ -30,6 +30,10 @@
   Path Format -> (trap-error (do (shenlogic.translate-file Path Format) false)
                               (/. E true)))
 
+(define sl-translation-succeeds?
+  Path Format -> (trap-error (do (shenlogic.translate-file Path Format) true)
+                             (/. E false)))
+
 (define sl-has-tag?
   Tag X -> (if (cons? X)
                (or (= (hd X) Tag) (sl-has-tag-list? Tag X))
@@ -97,12 +101,14 @@
                     (= (sl-eval "examples/lists.shen" "(same-pair? [a b])")
                        [value false]))
           (sl-check "repeated-pattern-priority-ir"
-                    (sl-has-tag? not-applicable
-                      (rules.compile (shenlogic.program "examples/lists.shen"))))
-          (sl-check "constructor-chc-rejected"
-                    (sl-translation-rejected? "examples/lists.shen" "chc"))
-          (sl-check "control-translation-rejected"
-                    (sl-translation-rejected? "examples/strict.shen" "graph"))
+                    (if (sl-has-tag? not-applicable
+                          (rules.compile (shenlogic.program "examples/lists.shen")))
+                        false
+                        true))
+          (sl-check "constructor-chc-supported"
+                    (sl-translation-succeeds? "examples/v2-constructors.shen" "chc"))
+          (sl-check "control-graph-supported"
+                    (sl-translation-succeeds? "examples/v2-control.shen" "graph"))
           (sl-check "separate-declare-eval"
                     (= (sl-eval "tests/fixtures/declared.shen" "(declared-id 7)")
                        [value 7]))
@@ -118,6 +124,10 @@
                     (certificate-test-unavailable-premise))
           (sl-check "certificate-rejects-malformed-step"
                     (certificate-test-malformed-step))
+          (sl-check "certificate-v2-bundle"
+                    (certificate-test-bundle-success))
+          (sl-check "certificate-v2-rejects-malformed-rule"
+                    (certificate-test-bundle-rejects-rule-shape))
           (sl-check "v2-nested-if-let-negative"
                     (= (sl-eval "examples/v2-control.shen" "(nested-if-let -2)")
                        [value 11]))
@@ -166,6 +176,9 @@
           (sl-check "v2-constructor-pair"
                     (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (pair 1 2))")
                        [value pair]))
+          (sl-check "v2-constructor-bundle"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (bundle 1 2))")
+                       [value bundle]))
           (sl-check "v2-constructor-zero-arity"
                     (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (unit))")
                        [value unit-constructor]))
@@ -197,7 +210,7 @@
                        [value 4]))
           (sl-check "v2-mixed-arithmetic-constructor"
                     (= (sl-eval "examples/v2-constructors.shen" "(mixed-constructor 3)")
-                       [value [ctor-value box [4 [ctor-value pair [3 [ctor-value node [2]]]]]]]))
+                       [value [ctor-value bundle [4 [ctor-value pair [3 [ctor-value node [2]]]]]]]))
           (sl-check "v2-symbol-literal"
                     (= (sl-eval "examples/v2-literals.shen" "(literal-kind foo)")
                        [value symbol-foo]))
@@ -219,6 +232,8 @@
                     (sl-rejected? "tests/fixtures/v2-rejections.shen"))
           (sl-check "v2-reject-separate-definition"
                     (sl-rejected? "tests/fixtures/v2-separate-definition.shen"))
+          (sl-check "v2-reject-constructor-arity-collision"
+                    (sl-rejected? "tests/fixtures/v2-constructor-arity.shen"))
           (sl-check "version"
                     (= (shenlogic.version) "0.2.0"))
           (sl-check "reject-unverified-fragment"

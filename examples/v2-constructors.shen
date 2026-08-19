@@ -5,7 +5,7 @@
   { A --> symbol }
   (node X) -> node
   (pair X Y) -> pair
-  (node X Y) -> node-two
+  (bundle X Y) -> bundle
   (unit) -> unit-constructor
   unit -> unit-symbol
   _ -> other)
@@ -21,7 +21,7 @@
 \\ expression; this is not a function call to `box` or `pair`.
 (define mixed-constructor
   { number --> A }
-  X -> (box (+ X 1) (pair X (node (- X 1)))))
+  X -> (bundle (+ X 1) (pair X (node (- X 1)))))
 
 (define wrap-constructor
   { A --> A }
