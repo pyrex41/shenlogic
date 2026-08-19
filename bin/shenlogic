@@ -16,4 +16,32 @@ case $HOST in
   */*) HOST=$(CDPATH= cd -- "$(dirname -- "$HOST")" && pwd)/$(basename -- "$HOST") ;;
 esac
 cd "$ROOT"
-exec "$HOST" script shen/cli.shen "$@"
+
+# The Shen runtime intentionally stays pure and does not own filesystem
+# layout.  Prepare output directories in the wrapper so the convenience
+# command has predictable behavior even when the parent does not exist.
+if [ "${1:-}" = certify ]; then
+  CERT_OUT=
+  CERT_PREV=
+  for CERT_ARG in "$@"; do
+    if [ "$CERT_PREV" = --out ]; then CERT_OUT=$CERT_ARG; fi
+    CERT_PREV=$CERT_ARG
+  done
+  [ -n "$CERT_OUT" ] || { echo 'shenlogic certify: expected --out DIR' >&2; exit 2; }
+  mkdir -p -- "$CERT_OUT"
+fi
+if [ "${1:-}" = translate ]; then
+  TRANSLATE_OUT=
+  TRANSLATE_PREV=
+  for TRANSLATE_ARG in "$@"; do
+    if [ "$TRANSLATE_PREV" = -o ]; then TRANSLATE_OUT=$TRANSLATE_ARG; fi
+    TRANSLATE_PREV=$TRANSLATE_ARG
+  done
+  if [ -n "$TRANSLATE_OUT" ]; then
+    TRANSLATE_DIR=${TRANSLATE_OUT%/*}
+    if [ "$TRANSLATE_DIR" != "$TRANSLATE_OUT" ]; then
+      mkdir -p -- "$TRANSLATE_DIR"
+    fi
+  fi
+fi
+exec "$HOST" script shenlogic-cli.shen "$@"
