@@ -944,11 +944,23 @@
 
 (define shenlogic.thf.v2-induction-one
   _ Target 0 Map P -> (@s "P @ " (shenlogic.thf.v2-ctor-head Target Map))
+  int Target Arity Map P ->
+    (shenlogic.thf.v2-induction-scalar Target Arity "$int" Map P)
+  symbol Target Arity Map P ->
+    (shenlogic.thf.v2-induction-scalar Target Arity "$i" Map P)
+  string Target Arity Map P ->
+    (shenlogic.thf.v2-induction-scalar Target Arity "$i" Map P)
   Source Target Arity Map P ->
     (let Args (shenlogic.thf.v2-vars Arity 0 "A")
       (@s "(! [" (shenlogic.thf.v2-typed-binders Args (shenlogic.thf.v2-ctor-arg-type Source)) "] : ("
         (shenlogic.thf.v2-pred-args Args) " => (P @ "
         (shenlogic.thf.v2-apply-raw Target Args Map) ")))")))
+
+(define shenlogic.thf.v2-induction-scalar
+  Target Arity Type Map P ->
+    (let Args (shenlogic.thf.v2-vars Arity 0 "A")
+      (@s "(! [" (shenlogic.thf.v2-typed-binders Args Type) "] : (P @ "
+        (shenlogic.thf.v2-apply-raw Target Args Map) "))")))
 
 (define shenlogic.thf.v2-pred-args
   [] -> "$true"
