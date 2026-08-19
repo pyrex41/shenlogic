@@ -176,18 +176,79 @@
 
 (define certificate-check-compiled-theory
   Source Theory CHCAST THFAST LoweringSteps ->
-    (let Expected (trap-error (rules.compile Source) (/. E malformed))
-      (if (= Expected malformed)
-          [error theory-unavailable]
-          (if (= Expected Theory)
-              (if (certificate-chc-equal? Theory CHCAST)
-                  (if (certificate-thf-equal? Theory THFAST)
-                      (if (certificate-lowering-valid? LoweringSteps Theory)
-                          [ok]
-                          [error invalid-lowering-coverage])
-                      [error thf-mismatch])
-                  [error chc-mismatch])
-              [error theory-mismatch]))))
+    (if (certificate-source-logic-valid? Source)
+        (let Expected (trap-error (rules.compile Source) (/. E malformed))
+          (if (= Expected malformed)
+              [error theory-unavailable]
+              (if (= Expected Theory)
+                  (if (certificate-chc-equal? Theory CHCAST)
+                      (if (certificate-thf-equal? Theory THFAST)
+                          (if (certificate-lowering-valid? LoweringSteps Theory)
+                              [ok]
+                              [error invalid-lowering-coverage])
+                          [error thf-mismatch])
+                      [error chc-mismatch])
+                  [error theory-mismatch])))
+        [error unsupported-source]))
+
+(define certificate-source-logic-valid?
+  Source ->
+    (and (certificate-supported-program? Source)
+         (let R (trap-error (shenlogic.validate.logic Source)
+                            (/. E invalid-source))
+           (and (cons? R) (= (hd R) ok)))))
+
+\\ validate.logic predates the normalized e-* nodes and therefore cannot see
+\\ an effect hidden behind e-prim.  Keep the explicit supported-fragment gate
+\\ here so a forged normalized certificate cannot smuggle one through.
+(define certificate-supported-program?
+  [program Definitions] -> (certificate-supported-definitions? Definitions)
+  _ -> false)
+
+(define certificate-supported-definitions?
+  [] -> true
+  [[definition _ _ Clauses _] | Ds] ->
+    (and (certificate-supported-clauses? Clauses)
+         (certificate-supported-definitions? Ds))
+  _ -> false)
+
+(define certificate-supported-clauses?
+  [] -> true
+  [[clause _ _ Guard Body] | Cs] ->
+    (and (certificate-supported-guard? Guard)
+         (certificate-supported-expr? Body)
+         (certificate-supported-clauses? Cs))
+  _ -> false)
+
+(define certificate-supported-guard?
+  none -> true
+  [some E] -> (certificate-supported-expr? E)
+  _ -> false)
+
+(define certificate-supported-expr?
+  [e-var _] -> true
+  [e-value _] -> true
+  [e-ctor _ Args] -> (certificate-supported-exprs? Args)
+  [e-call _ Args] -> (certificate-supported-exprs? Args)
+  [e-if C T F] -> (and (certificate-supported-expr? C)
+                       (certificate-supported-expr? T)
+                       (certificate-supported-expr? F))
+  [e-let _ A B] -> (and (certificate-supported-expr? A)
+                        (certificate-supported-expr? B))
+  [e-and A B] -> (and (certificate-supported-expr? A)
+                      (certificate-supported-expr? B))
+  [e-or A B] -> (and (certificate-supported-expr? A)
+                     (certificate-supported-expr? B))
+  [e-prim Op Args] ->
+    (and (element? Op [+ - * = neq < > <= >=])
+         (certificate-supported-exprs? Args))
+  _ -> false)
+
+(define certificate-supported-exprs?
+  [] -> true
+  [E | Es] -> (and (certificate-supported-expr? E)
+                   (certificate-supported-exprs? Es))
+  _ -> false)
 
 (define certificate-chc-equal?
   Theory Artifact ->

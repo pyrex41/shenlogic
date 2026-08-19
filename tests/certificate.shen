@@ -129,3 +129,16 @@
 (define certificate-test-bundle-raw-source
   [shenlogic-certificate V _ VS D T C H S NM] ->
     [shenlogic-certificate V [define fact] VS D T C H S NM])
+
+(define certificate-test-bundle-rejects-unsupported-source
+  -> (= (certificate-check
+          (certificate-test-bundle-unsupported-source
+            (certificate-test-v2-bundle)))
+         [error unsupported-source]))
+
+(define certificate-test-bundle-unsupported-source
+  [shenlogic-certificate V _ VS D T C H S NM] ->
+    (let P [program [[definition fact none
+                       [[clause 0 [] none
+                         [e-prim do [[e-value 1]]]]] 0]]]
+      [shenlogic-certificate V P VS (decision.compile P) T C H S NM]))
