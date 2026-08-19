@@ -212,7 +212,7 @@
 (define shenlogic.ast.normalize-clauses
   [] _ _ -> []
   [[clause I Patterns Guard Body] | Cs] Names Constructors ->
-    [[clause I (map shenlogic.ast.normalize-pattern Patterns)
+    [[clause I (map (/. P (shenlogic.ast.normalize-pattern P)) Patterns)
             (shenlogic.ast.normalize-guard Guard Names Constructors)
             (shenlogic.ast.normalize-expr Body Names Constructors)] |
       (shenlogic.ast.normalize-clauses Cs Names Constructors)])

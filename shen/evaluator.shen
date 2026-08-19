@@ -234,7 +234,8 @@
   [p-ctor nil Ps] V E -> (if (= Ps [])
                              (if (= V []) [match-ok | E] [match-fail])
                              [match-fail])
-  [p-ctor cons Ps] V E -> (if (and (= (length Ps) 2) (cons? V))
+  [p-ctor cons Ps] V E -> (if (and (= (length Ps) 2)
+                                      (evaluator-list-value? V))
                               (let H (evaluator-match (hd Ps) (hd V) E)
                                 (if (= (hd H) match-fail)
                                     H
@@ -243,7 +244,7 @@
                               [match-fail])
   [p-ctor Tag Ps] V E -> (evaluator-match-ctor Tag Ps V E)
   [p-constructor Tag Ps] V E -> (evaluator-match-ctor Tag Ps V E)
-  [p-cons A B] V E -> (if (cons? V)
+  [p-cons A B] V E -> (if (evaluator-list-value? V)
                           (let H (evaluator-match A (hd V) E)
                             (if (= (hd H) match-fail)
                                 H
@@ -254,15 +255,15 @@
               (if (variable? P)
                   (evaluator-bind P V E)
                   (if (and (cons? P) (= (hd P) cons))
-                      (if (cons? V)
+                      (if (evaluator-list-value? V)
                           (let H (evaluator-match (hd (tl P)) (hd V) E)
                             (if (= (hd H) match-fail)
                                 H
                                 (evaluator-match
                                   (hd (tl (tl P))) (tl V) (tl H))))
                           [match-fail])
-                      (if (cons? P)
-                          (if (cons? V)
+                          (if (cons? P)
+                          (if (evaluator-list-value? V)
                               (let H (evaluator-match (hd P) (hd V) E)
                                 (if (= (hd H) match-fail)
                                     H
@@ -282,6 +283,9 @@
   [ctor-value Tag Values] -> [found Tag Values]
   [constructor-value Tag Values] -> [found Tag Values]
   _ -> not-found)
+
+(define evaluator-list-value?
+  V -> (and (cons? V) (= (evaluator-ctor-value V) not-found)))
 
 (define evaluator-match-ctor
   Tag Ps V E -> (let C (evaluator-ctor-value V)
