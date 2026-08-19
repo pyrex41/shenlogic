@@ -224,8 +224,11 @@ theorem firstApplicable_skip (f : Functions) (v : Value) (c : Clause) (cs : List
       (firstApplicable f v cs).map Nat.succ := by
   intro h; simp [firstApplicable, h]
 
-theorem choose_first_sound (f : Functions) (v : Value) (cs : List Clause) {w : Value}
-    (hchoose : choose f v cs = some w) : choose f v cs = some w := hchoose
+theorem choose_first_sound (f : Functions) (v : Value) (c : Clause) (cs : List Clause)
+    (ρ : Bindings) (hm : Pattern.match c.pattern v = some ρ)
+    (hg : guardPass f ρ c.guard = some true) {w : Value}
+    (hb : eval f ρ c.body = some w) : choose f v (c :: cs) = some w := by
+  simp [choose, hm, hg, hb]
 
 /- v2 rules, finite derivations, and least closure. -/
 
