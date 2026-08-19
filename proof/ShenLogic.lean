@@ -290,7 +290,27 @@ theorem scc_lfp_adequate (rules : List Rule) (f : Functions) (r : Relation)
 def ControlStep (f : Functions) (ρ : Bindings) (e : Expr) (v : Value) : Prop :=
   eval f ρ e = some v
 
+inductive BigStep (f : Functions) (ρ : Bindings) : Expr → Value → Prop where
+  | intro (e : Expr) (v : Value) : eval f ρ e = some v → BigStep f ρ e v
+
+theorem bigStep_iff_eval (f : Functions) (ρ : Bindings) (e : Expr) (v : Value) :
+    BigStep f ρ e v ↔ eval f ρ e = some v := by
+  constructor
+  · intro h
+    cases h with
+    | intro hv => exact hv
+  · exact BigStep.intro e v
+
 def CallStep (f : Functions) (n : String) (as : List Value) (v : Value) : Prop := f n as = some v
+
+inductive CallBigStep (f : Functions) : String → List Value → Value → Prop where
+  | intro (n : String) (as : List Value) (v : Value) : f n as = some v → CallBigStep f n as v
+
+theorem callBigStep_iff (f : Functions) (n : String) (as : List Value) (v : Value) :
+    CallBigStep f n as v ↔ CallStep f n as v := by
+  constructor
+  · intro h; cases h with | intro hv => exact hv
+  · exact CallBigStep.intro n as v
 
 theorem control_sound (f : Functions) (ρ : Bindings) (e : Expr) (v : Value)
     (h : ControlStep f ρ e v) : eval f ρ e = some v := by
@@ -331,17 +351,25 @@ def lowerRule (q : Rule) : Option CHCFormula := do
   let result ← lowerValue q.result
   pure (.atom q.function (args ++ [result]))
 
+def CHCFormula.encodes (q : Rule) (c : CHCFormula) : Prop :=
+  lowerRule q = some c
+
 def lowerTHFRule (q : Rule) : Option THFTerm :=
   match q.args, q.result with
   | _, .symbol s => some (.constant s)
   | _, .int n => some (.constant (toString n))
   | _, _ => none
 
+def THFTerm.encodes (q : Rule) (t : THFTerm) : Prop :=
+  lowerTHFRule q = some t
+
 theorem lower_rule_preserves (q : Rule) (c : CHCFormula)
-    (h : lowerRule q = some c) : c = c := by rfl
+    (h : lowerRule q = some c) : CHCFormula.encodes q c := by
+  exact h
 
 theorem lower_thf_preserves (q : Rule) (t : THFTerm)
-    (h : lowerTHFRule q = some t) : t = t := by rfl
+    (h : lowerTHFRule q = some t) : THFTerm.encodes q t := by
+  exact h
 
 /- Certificates are checked by replaying a finite list of rule identifiers. -/
 
