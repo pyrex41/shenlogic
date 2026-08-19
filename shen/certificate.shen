@@ -273,9 +273,8 @@
   Id [[rule Id _ _ Path _ _ _ _] | _] -> [found Path]
   Id [_ | Rs] -> (certificate-rule-path Id Rs))
 
-\\ Lowering steps in released artifacts have appeared as either
-\\ [lowering-step RuleId Path ...] or [step RuleId Path ...].  Accept both,
-\\ while recursively accepting tagged containers and opaque backend records.
+\\ Lowering coverage is a multiset, not a loose set of references.  Require
+\\ exactly one CHC and one THF record for every compiled rule/path.
 (define certificate-lowering-valid?
   Steps [theory _ _ Rules _ _] ->
     (certificate-lowering-consume Steps
