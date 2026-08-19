@@ -57,7 +57,8 @@
 (define certificate-signature?
   none -> true
   [signature Args Result] ->
-    (and (certificate-list? Args) (certificate-term-schema? Result))
+    (and (certificate-term-list-schema? Args)
+         (certificate-term-schema? Result))
   _ -> false)
 
 (define certificate-clauses?
@@ -214,8 +215,14 @@
 (define certificate-constructors?
   [] -> true
   [[constructor Source Target Arity] | Cs] ->
-    (certificate-constructors? Cs)
+    (and (certificate-constructor-tag? Source)
+         (certificate-constructor-tag? Target)
+         (integer? Arity)
+         (>= Arity 0) (certificate-constructors? Cs))
   _ -> false)
+
+(define certificate-constructor-tag?
+  X -> (or (symbol? X) (= X true) (= X false)))
 
 (define certificate-theory-v2?
   [theory ValueSignature Relations Rules SCCs NameMap]
@@ -233,7 +240,8 @@
 
 (define certificate-name-pairs?
   [] -> true
-  [[_ _] | Ps] -> (certificate-name-pairs? Ps)
+  [[A B] | Ps] -> (and (symbol? A) (symbol? B)
+                       (certificate-name-pairs? Ps))
   _ -> false)
 
 (define certificate-rule-ir?
