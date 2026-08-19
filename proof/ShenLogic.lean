@@ -255,6 +255,26 @@ def RuleSatisfied (f : Functions) (r : Relation) (q : Rule) : Prop :=
 
 def RuleConclusion (q : Rule) : Triple := (q.function, q.args, q.result)
 
+def Step (rules : List Rule) (r : Relation) (n : String) (as : List Value) (v : Value) : Prop :=
+  ∃ q, q ∈ rules ∧ q.function = n ∧ q.args = as ∧ q.result = v ∧
+    RuleSatisfied (fun _ _ => none) r q
+
+theorem ruleSatisfied_mono (f : Functions) {r s : Relation}
+    (hs : ∀ n as v, r n as v → s n as v) (q : Rule)
+    (h : RuleSatisfied f r q) : RuleSatisfied f s q := by
+  intro p hp
+  have h' := h p hp
+  cases p with
+  | call n as v => exact hs n as v h'
+  | _ => exact h'
+
+theorem step_monotone (rules : List Rule) {r s : Relation}
+    (hs : ∀ n as v, r n as v → s n as v) :
+    ∀ n as v, Step rules r n as v → Step rules s n as v := by
+  intro n as v h
+  rcases h with ⟨q, hq, hn, ha, hv, hp⟩
+  exact ⟨q, hq, hn, ha, hv, ruleSatisfied_mono (fun _ _ => none) hs q hp⟩
+
 def Closed (rules : List Rule) (r : Relation) : Prop :=
   ∀ q, q ∈ rules → RuleSatisfied (fun _ _ => none) r q → r q.function q.args q.result
 
@@ -311,6 +331,23 @@ theorem callBigStep_iff (f : Functions) (n : String) (as : List Value) (v : Valu
   constructor
   · intro h; cases h with | intro hv => exact hv
   · exact CallBigStep.intro n as v
+
+def Graph (f : Functions) : Relation := fun n as v => CallStep f n as v
+
+def Defined (f : Functions) (n : String) (as : List Value) : Prop :=
+  ∃ v, Graph f n as v
+
+theorem eval_iff_graph (f : Functions) (n : String) (as : List Value) (v : Value) :
+    CallStep f n as v ↔ Graph f n as v := Iff.rfl
+
+theorem graph_functional (f : Functions) (n : String) (as : List Value) {v₁ v₂ : Value}
+    (h₁ : Graph f n as v₁) (h₂ : Graph f n as v₂) : v₁ = v₂ := by
+  unfold Graph CallStep at h₁ h₂
+  rw [h₁] at h₂
+  injection h₂
+
+theorem defined_iff_graph (f : Functions) (n : String) (as : List Value) :
+    Defined f n as ↔ ∃ v, Graph f n as v := Iff.rfl
 
 theorem control_sound (f : Functions) (ρ : Bindings) (e : Expr) (v : Value)
     (h : ControlStep f ρ e v) : eval f ρ e = some v := by
@@ -379,7 +416,8 @@ structure Certificate where
   deriving Repr
 
 def Certificate.Valid (c : Certificate) : Prop :=
-  ∀ n, n ∈ c.accepted → ∃ q, q ∈ c.rules ∧ q.id = n
+  ∀ n, n ∈ c.accepted → ∃ q, q ∈ c.rules ∧ q.id = n ∧
+    ((∃ out, lowerRule q = some out) ∨ (∃ out, lowerTHFRule q = some out))
 
 noncomputable def checkCertificate (c : Certificate) : Bool := by
   letI : Decidable (Certificate.Valid c) := Classical.propDecidable (Certificate.Valid c)
