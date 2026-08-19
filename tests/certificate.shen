@@ -60,7 +60,7 @@
                    (let Steps (shenlogic.workflow.lowering-steps
                                  (shenlogic.workflow.theory-rules T))
                      [shenlogic-certificate 1 P VS D T [chc C] [thf H]
-                      Steps NM]))))))))
+                      Steps NM])))))))))
 
 (define certificate-test-bundle-success
   -> (= (certificate-check (certificate-test-bundle)) [ok]))
