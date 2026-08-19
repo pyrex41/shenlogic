@@ -900,6 +900,16 @@
   F Args Result Bound Map Overrides ->
     (let Head (shenlogic.thf.v2-relation-head F Map Overrides)
       (@s "(" Head (shenlogic.thf.v2-call-args Args Result Bound Map) ")")))
+
+\\ Append a closed conjecture to a rendered v2 artifact.  Keeping this next
+\\ to v2-call ensures relation/constructor names use the same safe renderer
+\\ as axioms and rules.
+(define shenlogic.thf.query-fact
+  Artifact Relation Args Expected NameMap ->
+    (@s Artifact (n->string 10)
+        "thf(shenlogic_query,conjecture,"
+        (shenlogic.thf.v2-call Relation Args Expected [] NameMap []) ")."
+        (n->string 10)))
 (define shenlogic.thf.v2-call-args
   [] Result Bound Map -> (@s " @ " (shenlogic.thf.v2-term Result Bound Map))
   [A | As] Result Bound Map -> (@s " @ " (shenlogic.thf.v2-term A Bound Map)

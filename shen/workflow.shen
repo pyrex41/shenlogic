@@ -7,6 +7,100 @@
 (define shenlogic.workflow.expected
   Text -> (hd (read-from-string-unprocessed Text)))
 
+\\ Query arguments are deliberately read without evaluation.  The query
+\\ boundary accepts one closed source form and lowers only literal Values;
+\\ this prevents an open term from becoming an unconstrained solver query.
+(define shenlogic.workflow.read-one
+  Text -> (let Forms (read-from-string-unprocessed Text)
+             (if (and (cons? Forms) (= (tl Forms) []))
+                 [ok (hd Forms)]
+                 [error malformed-query-source])))
+
+(define shenlogic.workflow.safe-read-one
+  Text -> (trap-error (shenlogic.workflow.read-one Text)
+                      (/. E [error malformed-query-source])))
+
+(define shenlogic.workflow.definition-arity
+  _ [] -> not-found
+  Name [[definition Name _ _ Arity] | _] -> Arity
+  Name [_ | Ds] -> (shenlogic.workflow.definition-arity Name Ds))
+
+(define shenlogic.workflow.constructor-arity-list
+  Tag [] -> not-found
+  Tag [[constructor Source Target Arity] | Cs] ->
+    (if (or (= Tag Source) (= Tag Target)) Arity
+        (shenlogic.workflow.constructor-arity-list Tag Cs)))
+
+(define shenlogic.workflow.closed-value
+  X Constructors ->
+    (if (variable? X)
+        [error open-query-value]
+        (if (integer? X)
+            [ok [v-int [i-lit X]]]
+            (if (string? X)
+                [ok [v-string X]]
+                (if (= X true)
+                    [ok v-true]
+                    (if (= X false)
+                        [ok v-false]
+                        (if (= X [])
+                            [ok v-nil]
+                            (if (cons? X)
+                                (shenlogic.workflow.closed-application X Constructors)
+                                [ok [v-symbol X]]))))))))
+
+(define shenlogic.workflow.closed-application
+  [cons H T] Constructors ->
+    (let A (shenlogic.workflow.closed-value H Constructors)
+      (if (= (hd A) ok)
+          (let B (shenlogic.workflow.closed-value T Constructors)
+            (if (= (hd B) ok)
+                [ok [v-cons (hd (tl A)) (hd (tl B))]] B)) A))
+  [nil] _ -> [ok v-nil]
+  [ctor Tag Args] Constructors ->
+    (shenlogic.workflow.closed-constructor Tag Args Constructors)
+  [constructor Tag Args] Constructors ->
+    (shenlogic.workflow.closed-constructor Tag Args Constructors)
+  [Tag | Args] Constructors ->
+    (let Arity (shenlogic.workflow.constructor-arity-list Tag Constructors)
+      (if (= Arity not-found)
+          [error unsupported-query-value]
+          (if (= Arity (length Args))
+              (shenlogic.workflow.closed-constructor Tag Args Constructors)
+              [error query-constructor-arity]))))
+
+(define shenlogic.workflow.closed-constructor
+  Tag Args Constructors ->
+    (let Arity (shenlogic.workflow.constructor-arity-list Tag Constructors)
+      (if (= Arity not-found)
+          [error unknown-query-constructor]
+          (if (= Arity (length Args))
+              (let Values (shenlogic.workflow.closed-values Args Constructors)
+                (if (= (hd Values) ok)
+                    [ok [v-ctor Tag (hd (tl Values))]] Values))
+              [error query-constructor-arity]))))
+
+(define shenlogic.workflow.closed-values
+  [] _ -> [ok []]
+  [X | Xs] Constructors ->
+    (let A (shenlogic.workflow.closed-value X Constructors)
+      (if (= (hd A) ok)
+          (let B (shenlogic.workflow.closed-values Xs Constructors)
+            (if (= (hd B) ok)
+                [ok [(hd (tl A)) | (hd (tl B))]] B)) A)))
+
+(define shenlogic.workflow.query-expression
+  [Name | Args] Definitions Constructors ->
+    (let Arity (shenlogic.workflow.definition-arity Name Definitions)
+      (if (= Arity not-found)
+          [error unknown-query-function]
+          (if (= Arity (length Args))
+              (let Values (shenlogic.workflow.closed-values Args Constructors)
+                (if (= (hd Values) ok)
+                    [ok [Name (hd (tl Values))]] Values))
+              [error query-function-arity])))
+  _ _ _ -> [error malformed-query-expression])
+
 (define shenlogic.workflow.backend-name
   X -> (if (string? X) X (str X)))
 
@@ -77,14 +171,39 @@
     (if (or (= (shenlogic.workflow.backend-name Backend) "chc")
             (= (shenlogic.workflow.backend-name Backend) "thf"))
         (let Program (shenlogic.workflow.source File)
-             Theory (shenlogic.workflow.theory Program)
-             CanonicalBackend (if (= (shenlogic.workflow.backend-name Backend) "chc")
-                                 "chc" "thf")
-             Model (shenlogic.translate-theory CanonicalBackend Program Theory)
-             Query (if (= CanonicalBackend "chc")
-                       (shenlogic.chc.query Model "shenlogic_query")
-                       (@s Model (n->string 10)
-                           "thf(shenlogic_query,conjecture,($true))."
-                           (n->string 10)))
-             [ok Backend Query])
+             Definitions (shenlogic.ast.program-definitions Program)
+             Constructors (hd (tl (shenlogic.ast.constructor-environment Program)))
+             ParsedExpr (shenlogic.workflow.safe-read-one Expr)
+             ParsedExpected (shenlogic.workflow.safe-read-one Expected)
+             (if (= (hd ParsedExpr) ok)
+                 (if (= (hd ParsedExpected) ok)
+                     (let QueryExpr (shenlogic.workflow.query-expression
+                                      (hd (tl ParsedExpr)) Definitions Constructors)
+                          QueryValue (shenlogic.workflow.closed-value
+                                      (hd (tl ParsedExpected)) Constructors)
+                          (if (= (hd QueryExpr) ok)
+                              (if (= (hd QueryValue) ok)
+                                  (let Theory (shenlogic.workflow.theory Program)
+                                       CanonicalBackend
+                                         (if (= (shenlogic.workflow.backend-name Backend)
+                                                "chc") "chc" "thf")
+                                       Model (shenlogic.translate-theory
+                                                CanonicalBackend Program Theory)
+                                       TheoryConstructors
+                                         (certificate-theory-value-signature Theory)
+                                       NameMap (certificate-theory-name-map Theory)
+                                       QueryForm (hd (tl QueryExpr))
+                                       Name (hd QueryForm)
+                                       QArgs (hd (tl QueryForm))
+                                       Query (if (= CanonicalBackend "chc")
+                                                 (shenlogic.chc.query-fact Model Name
+                                                   QArgs (hd (tl QueryValue))
+                                                   TheoryConstructors NameMap)
+                                                 (shenlogic.thf.query-fact Model Name
+                                                   QArgs (hd (tl QueryValue)) NameMap))
+                                       [ok Backend Query])
+                                  QueryValue)
+                              QueryExpr)))
+                     ParsedExpected)
+                 ParsedExpr))
         [error invalid-backend Backend]))
