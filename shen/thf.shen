@@ -953,7 +953,7 @@
       (shenlogic.thf.v2-induction-closure Cs Map P) ")"))
 
 (define shenlogic.thf.v2-induction-one
-  _ Target 0 Map P -> (@s "P @ " (shenlogic.thf.v2-ctor-head Target Map))
+  _ Target 0 Map P -> (@s "(P @ " (shenlogic.thf.v2-ctor-head Target Map) ")")
   int Target Arity Map P ->
     (shenlogic.thf.v2-induction-scalar Target Arity "$int" Map P)
   symbol Target Arity Map P ->
