@@ -1,8 +1,10 @@
 \\ Certificate replay regression cases. Load this file after shen/certificate.shen.
 
 (define certificate-test-theory
-  -> [theory [] [[rule r0 fact [x] [x] [] [fact 0 1]]
-                 [rule r1 fact [x] [x] [[fact 0 1]] [fact 1 2]]] []])
+  -> [theory [value-signature []] []
+              [[rule r0 fact clause0 path0 [x] [x] [] [fact 0 1]]
+               [rule r1 fact clause1 path1 [x] [x] [[fact 0 1]] [fact 1 2]]]
+              [] [name-map []]])
 
 (define certificate-test-success
   -> (= (certificate-check (certificate-test-theory)
