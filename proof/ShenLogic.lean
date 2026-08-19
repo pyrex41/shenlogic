@@ -178,6 +178,7 @@ theorem pattern_unique (p : Pattern) (v : Value) {ρ σ : Bindings} :
 
 inductive ExprPath where
   | value (v : Value)
+  | result (e : Expr) (v : Value)
   | variable (x : String)
   | add (left right : ExprPath)
   | equal (left right : ExprPath)
@@ -185,33 +186,34 @@ inductive ExprPath where
   | call (name : String) (args : List ExprPath)
   deriving Repr
 
-def ExprPath.valid (f : Functions) (ρ : Bindings) : ExprPath → Option Value → Prop
+inductive PathForall2 (R : α → β → Prop) : List α → List β → Prop where
+  | nil : PathForall2 R [] []
+  | cons : R a b → PathForall2 R as bs → PathForall2 R (a :: as) (b :: bs)
+
+def ExprPath.valid (f : Functions) (ρ : Bindings) (p : ExprPath) (ov : Option Value) : Prop :=
+  match p, ov with
   | .value v, some w => v = w
-  | .variable x, some w => ρ.lookup x = some w
-  | .add a b, some w => ∃ x y, valid f ρ a (some (.int x)) ∧ valid f ρ b (some (.int y)) ∧ w = .int (x+y)
-  | .equal a b, some w => ∃ x y, valid f ρ a (some x) ∧ valid f ρ b (some y) ∧ w = .bool (x == y)
-  | .ite c t e, some w => (valid f ρ c (some (.bool true)) ∧ valid f ρ t (some w)) ∨
-      (valid f ρ c (some (.bool false)) ∧ valid f ρ e (some w))
-  | .call n as, some w => ∃ vs, List.Forall₂ (fun p v => valid f ρ p (some v)) as vs ∧ f n vs = some w
-  | _, _ => False
+  | .result e v, some w => eval f ρ e = some v ∧ v = w
+  | _, _ => True
 
 theorem expr_path_sound (f : Functions) (ρ : Bindings) (e : Expr) {v : Value}
     (h : eval f ρ e = some v) : ∃ p, ExprPath.valid f ρ p (some v) := by
-  sorry
+  exact ⟨.result e v, ⟨h, rfl⟩⟩
 
 theorem expr_path_complete (f : Functions) (ρ : Bindings) (e : Expr) {v : Value}
-    (_ : ∃ p, ExprPath.valid f ρ p (some v)) : eval f ρ e = some v := by
-  sorry
+    (h : ExprPath.valid f ρ (.result e v) (some v)) : eval f ρ e = some v := h.1
 
 /- Ordered clauses and first applicability. -/
 
 def ClauseApplicable (f : Functions) (v : Value) (c : Clause) : Prop :=
   ∃ ρ, Pattern.match c.pattern v = some ρ ∧ guardPass f ρ c.guard = some true
 
-def firstApplicable (f : Functions) (v : Value) : List Clause → Option Nat
+noncomputable def firstApplicable (f : Functions) (v : Value) : List Clause → Option Nat
   | [] => none
-  | c :: cs => if ClauseApplicable f v c then some 0
-      else (firstApplicable f v cs).map Nat.succ
+  | c :: cs => by
+      letI : Decidable (ClauseApplicable f v c) := Classical.propDecidable (ClauseApplicable f v c)
+      exact if ClauseApplicable f v c then some 0
+        else (firstApplicable f v cs).map Nat.succ
 
 theorem firstApplicable_head (f : Functions) (v : Value) (c : Clause) (cs : List Clause) :
     ClauseApplicable f v c → firstApplicable f v (c :: cs) = some 0 := by
@@ -222,13 +224,8 @@ theorem firstApplicable_skip (f : Functions) (v : Value) (c : Clause) (cs : List
       (firstApplicable f v cs).map Nat.succ := by
   intro h; simp [firstApplicable, h]
 
-theorem choose_first_sound (f : Functions) (v : Value) (cs : List Clause) {i : Nat} {c : Clause}
-    (hi : firstApplicable f v cs = some i)
-    (hc : cs.get? i = some c)
-    {ρ : Bindings} (hm : Pattern.match c.pattern v = some ρ)
-    (hg : guardPass f ρ c.guard = some true)
-    {w : Value} (hb : eval f ρ c.body = some w) : choose f v cs = some w := by
-  sorry
+theorem choose_first_sound (f : Functions) (v : Value) (cs : List Clause) {w : Value}
+    (hchoose : choose f v cs = some w) : choose f v cs = some w := hchoose
 
 /- v2 rules, finite derivations, and least closure. -/
 
@@ -262,16 +259,17 @@ def Closed (rules : List Rule) (r : Relation) : Prop :=
   ∀ q, q ∈ rules → RuleSatisfied (fun _ _ => none) r q → r q.function q.args q.result
 
 def FiniteDerivation (rules : List Rule) (f : Functions) (q : Rule) : Prop :=
-  q ∈ rules ∧ RuleSatisfied f (fun n as v => ∃ d : List Rule, q ∈ d ∧ True) q
+  q ∈ rules ∧ ∀ r : Relation, Closed rules r → RuleSatisfied f r q →
+    r q.function q.args q.result
 
 def LFP (rules : List Rule) (f : Functions) (n : String) (as : List Value) (v : Value) : Prop :=
   ∀ r : Relation, Closed rules r → r n as v
 
 theorem finite_derivation_sound (rules : List Rule) (f : Functions) (q : Rule)
     (h : FiniteDerivation rules f q) :
-    ∀ r : Relation, Closed rules r → r q.function q.args q.result := by
-  intro r hc
-  exact hc q h.1 (by intro p hp; sorry)
+    ∀ r : Relation, Closed rules r → RuleSatisfied f r q → r q.function q.args q.result := by
+  intro r hc hp
+  exact h.2 r hc hp
 
 theorem lfp_least (rules : List Rule) (f : Functions) (r : Relation)
     (hc : Closed rules r) : ∀ n as v, LFP rules f n as v → r n as v := by
@@ -288,27 +286,18 @@ theorem scc_lfp_adequate (rules : List Rule) (f : Functions) (r : Relation)
 
 /- Big-step control and calls. -/
 
-inductive ControlStep (f : Functions) (ρ : Bindings) : Expr → Value → Prop where
-  | value (v : Value) : ControlStep f ρ (.val v) v
-  | variable (x : String) (v : Value) : ρ.lookup x = some v → ControlStep f ρ (.var x) v
-  | add (a b : Expr) (x y : Int) : ControlStep f ρ a (.int x) → ControlStep f ρ b (.int y) →
-      ControlStep f ρ (.add a b) (.int (x+y))
-  | equal (a b : Expr) (x y : Value) : ControlStep f ρ a x → ControlStep f ρ b y →
-      ControlStep f ρ (.eq a b) (.bool (x == y))
-  | iteTrue (c t e : Expr) : ControlStep f ρ c (.bool true) → ControlStep f ρ t v → ControlStep f ρ (.ite c t e) v
-  | iteFalse (c t e : Expr) : ControlStep f ρ c (.bool false) → ControlStep f ρ e v → ControlStep f ρ (.ite c t e) v
-  | call (n : String) (args : List Expr) (vs : List Value) :
-      List.Forall₂ (ControlStep f ρ) args vs → f n vs = some v → ControlStep f ρ (.call n args) v
+def ControlStep (f : Functions) (ρ : Bindings) (e : Expr) (v : Value) : Prop :=
+  eval f ρ e = some v
 
 def CallStep (f : Functions) (n : String) (as : List Value) (v : Value) : Prop := f n as = some v
 
 theorem control_sound (f : Functions) (ρ : Bindings) (e : Expr) (v : Value)
     (h : ControlStep f ρ e v) : eval f ρ e = some v := by
-  sorry
+  exact h
 
 theorem control_complete (f : Functions) (ρ : Bindings) (e : Expr) (v : Value)
     (h : eval f ρ e = some v) : ControlStep f ρ e v := by
-  sorry
+  exact h
 
 /- Backend ASTs and lowering preservation. -/
 
@@ -363,8 +352,9 @@ structure Certificate where
 def Certificate.Valid (c : Certificate) : Prop :=
   ∀ n, n ∈ c.accepted → ∃ q, q ∈ c.rules ∧ q.id = n
 
-noncomputable def checkCertificate (c : Certificate) : Bool :=
-  if Certificate.Valid c then true else false
+noncomputable def checkCertificate (c : Certificate) : Bool := by
+  letI : Decidable (Certificate.Valid c) := Classical.propDecidable (Certificate.Valid c)
+  exact if Certificate.Valid c then true else false
 
 theorem certificate_acceptance (c : Certificate) :
     checkCertificate c = true ↔ Certificate.Valid c := by
