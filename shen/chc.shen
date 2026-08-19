@@ -177,7 +177,10 @@
         (shenlogic.chc.v2-relations Relations NameMap)
         (shenlogic.chc.v2-variables Rules [])
         (shenlogic.chc.v2-rules Rules Relations Constructors NameMap)
-        "(check-sat)" (n->string 10)))
+        ""))
+
+(define shenlogic.chc.check-sat
+  Artifact -> (@s Artifact (n->string 10) "(check-sat)" (n->string 10)))
 
 \\ Query helpers intentionally remain separate from the base artifact: callers
 \\ can ask Z3 for a relation derivability result without changing its rules.
