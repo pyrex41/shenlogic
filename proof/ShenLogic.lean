@@ -475,6 +475,7 @@ theorem control_complete (f : Functions) (ρ : Bindings) (e : Expr) (v : Value)
 inductive CHCTerm where
   | int (n : Int)
   | variable (x : String)
+  | boxed (v : Value)
   | application (name : String) (args : List CHCTerm)
   deriving Repr
 
@@ -494,7 +495,7 @@ inductive THFTerm where
 def lowerValue : Value → Option CHCTerm
   | .int n => some (.int n)
   | .symbol s => some (.variable s)
-  | _ => none
+  | v => some (.boxed v)
 
 def lowerRule (q : Rule) : Option CHCFormula := do
   let args ← q.args.mapM lowerValue
