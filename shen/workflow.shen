@@ -204,7 +204,7 @@
                                                    QArgs (hd (tl QueryValue)) NameMap))
                                        [ok Backend Query])
                                   QueryValue)
-                              QueryExpr)))
+                              QueryExpr))
                      ParsedExpected)
                  ParsedExpr))
         [error invalid-backend Backend]))
