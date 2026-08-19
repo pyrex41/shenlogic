@@ -210,6 +210,13 @@
   [[constructor string _ _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
   [[constructor nil _ _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
   [[constructor cons _ _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor int _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor true _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor false _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor symbol _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor string _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor nil _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
+  [ [constructor cons _] | Cs] -> (shenlogic.chc.v2-user-constructors Cs)
   [[constructor _ Target Arity] | Cs] ->
     (@s " " (shenlogic.chc.v2-ctor-decl Target Arity)
         (shenlogic.chc.v2-user-constructors Cs))
@@ -357,8 +364,9 @@
 
 (define shenlogic.chc.v2-string
   [s-var X] -> (shenlogic.chc.v2-var "s" X)
-  [s-lit X] -> (shenlogic.chc.v2-quote (str X))
-  X -> (shenlogic.chc.v2-quote (str X)))
+  [s-lit X] -> (shenlogic.chc.v2-quote X)
+  X -> (if (string? X) (shenlogic.chc.v2-quote X)
+          (shenlogic.chc.v2-quote (str X))))
 
 (define shenlogic.chc.v2-quote
   S -> (let Q (pos (serialize.canonical "") 0)
@@ -488,14 +496,24 @@
   [[constructor Source Target Arity] | Cs] Seen ->
     (and (number? Arity)
       (and (>= Arity 0)
-        (and (not (element? Target Seen))
-          (shenlogic.chc.v2-constructors-ok? Cs [Target | Seen]))))
+        (and (not (shenlogic.chc.v2-reserved-ctor? Target))
+          (and (not (element? Target Seen))
+            (shenlogic.chc.v2-constructors-ok? Cs [Target | Seen])))))
   [[constructor Target Arity] | Cs] Seen ->
     (and (number? Arity)
       (and (>= Arity 0)
-        (and (not (element? Target Seen))
-          (shenlogic.chc.v2-constructors-ok? Cs [Target | Seen]))))
+        (and (not (shenlogic.chc.v2-reserved-ctor? Target))
+          (and (not (element? Target Seen))
+            (shenlogic.chc.v2-constructors-ok? Cs [Target | Seen])))))
   _ _ -> false)
+
+(define shenlogic.chc.v2-reserved-ctor?
+  Target -> (or (= Target (intern "VInt"))
+    (or (= Target (intern "VTrue"))
+      (or (= Target (intern "VFalse"))
+        (or (= Target (intern "VSymbol"))
+          (or (= Target (intern "VString"))
+            (or (= Target (intern "VNil")) (= Target (intern "VCons")))))))))
 
 (define shenlogic.chc.v2-relations-ok?
   [] _ -> true
