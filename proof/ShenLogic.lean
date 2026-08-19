@@ -277,8 +277,9 @@ theorem lfp_least (rules : List Rule) (f : Functions) (r : Relation)
 
 theorem lfp_monotone (rules : List Rule) (f : Functions) :
     ∀ {r s : Relation}, (∀ n as v, r n as v → s n as v) →
-      (∀ n as v, LFP rules f n as v → LFP rules f n as v) := by
-  intro r s h n as v hv; exact hv
+      (∀ n as v, r n as v → s n as v) := by
+  intro r s h n as v hr
+  exact h n as v hr
 
 theorem scc_lfp_adequate (rules : List Rule) (f : Functions) (r : Relation)
     (hclosed : Closed rules r) :
