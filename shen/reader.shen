@@ -36,15 +36,15 @@
                            (length (shenlogic.ast.clause-patterns (hd Clauses)))]]))))))))
 
 (define shenlogic.reader.signature
-  Tail -> (if (and (cons? Tail) (not (cons? (hd Tail)))
-                       (= (str (hd Tail)) "{"))
+  Tail -> (if (and (cons? Tail)
+                       (shenlogic.ast.atom-spelling? (hd Tail) "{"))
               (shenlogic.reader.signature-loop (tl Tail) [])
               [none Tail]))
 
 (define shenlogic.reader.signature-loop
   [] _ -> [none []]
   [X | Tail] Rev ->
-    (if (and (not (cons? X)) (= (str X) "}"))
+    (if (shenlogic.ast.atom-spelling? X "}")
         [(shenlogic.ast.normalize-signature (reverse Rev)) Tail]
         (shenlogic.reader.signature-loop Tail [X | Rev])))
 
@@ -69,7 +69,7 @@
 (define shenlogic.reader.until-arrow
   [] _ -> [error sl-r002]
   [X | Rest] Rev ->
-    (if (and (not (cons? X)) (= (str X) "->"))
+    (if (shenlogic.ast.atom-spelling? X "->")
         [ok (reverse Rev) Rest]
         (shenlogic.reader.until-arrow Rest [X | Rev])))
 

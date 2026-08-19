@@ -35,13 +35,18 @@
 (define shenlogic.ast.signature-parts
   [] _ _ -> [error sl-a001 []]
   [X] Acc Seen ->
-    (if (and Seen (not (and (not (cons? X)) (= (str X) "-->"))))
+    (if (and Seen (not (shenlogic.ast.atom-spelling? X "-->")))
         [ok [(reverse Acc) X]]
         [error sl-a001 [X | Acc]])
   [X | Xs] Acc Seen ->
-    (if (and (not (cons? X)) (= (str X) "-->") )
+    (if (shenlogic.ast.atom-spelling? X "-->")
         (shenlogic.ast.signature-parts Xs Acc true)
         (shenlogic.ast.signature-parts Xs [X | Acc] Seen)))
+
+(define shenlogic.ast.atom-spelling?
+  [] _ -> false
+  X _ -> false where (cons? X)
+  X Spelling -> (= (str X) Spelling))
 
 (define shenlogic.ast.signature-args-from
   [_] -> []
@@ -83,7 +88,7 @@
                    [p-lit P]
                    (if (string? P)
                        [p-lit P]
-                       (if (and (symbol? P) (= (str P) "_"))
+                       (if (shenlogic.ast.atom-spelling? P "_")
                            [p-wild]
                            (if (variable? P) [p-var P] [p-lit P])))))))
 

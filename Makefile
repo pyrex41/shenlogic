@@ -3,6 +3,7 @@
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
 SHEN_GO_ABS := $(if $(findstring /,$(SHEN_GO)),$(abspath $(SHEN_GO)),$(shell command -v $(SHEN_GO) 2>/dev/null))
+BIFROST_IMPLS ?= shen-go,shen-cl,shen-lua
 export SHEN_GO
 VERSION ?= 0.2.0
 SOURCE_DATE_EPOCH ?= 0
@@ -41,8 +42,8 @@ proof:
 	@if command -v lake >/dev/null 2>&1; then cd proof && lake build; else echo 'SKIP: lake is not installed'; fi
 
 bifrost:
-	@if [ -x ../bifrost/.bin/bifrost ]; then BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls shen-go; \
-	elif command -v bifrost >/dev/null 2>&1; then BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls shen-go; \
+	@if [ -x ../bifrost/.bin/bifrost ]; then BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
+	elif command -v bifrost >/dev/null 2>&1; then BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
 	else echo 'SKIP: bifrost binary not found'; fi
 
 test-all: test smoke proof bifrost certify backend-check

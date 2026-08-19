@@ -1,8 +1,11 @@
 # ShenLogic
 
 ShenLogic translates a small, pure subset of Shen into logical specifications.
-It is implemented in Shen and runs on Shen 41.2 with
-[shen-go](https://github.com/pyrex41/shen-go).
+It is implemented entirely in Shen and is portable across conforming Shen 41.2
+implementations. The regression suite currently passes on
+[shen-go](https://github.com/pyrex41/shen-go),
+[shen-cl](https://github.com/pyrex41/shen-cl), and
+[shen-lua](https://github.com/pyrex41/shen-lua).
 
 For each supported Shen function, ShenLogic can produce:
 
@@ -18,13 +21,14 @@ assign it a result.
 
 ## Requirements
 
-- Shen 41.2 through `shen-go`;
-- Go 1.25 to build the pinned `shen-go` host;
+- a Shen 41.2 implementation;
+- Go 1.25 only when building the default `shen-go` development host;
 - optional: Z3, TPTP4X, Lean 4.19, Bifrost, and Yggdrasil for the extended
   validation workflow.
 
-By default, the Makefile uses `../shen-go/.bin/shen-go`. Set `SHEN_GO` to use a
-different executable.
+The bundled command-line wrapper and the basic Make targets use `shen-go` by
+default. The Shen source itself has no dependency on Go. Bifrost runs the same
+suite through each installed Shen host.
 
 ## Get started
 
@@ -32,7 +36,11 @@ different executable.
 make host
 make test
 make check
+make bifrost
 ```
+
+`make bifrost` tests shen-go, shen-cl, and shen-lua when they are installed.
+Set `BIFROST_IMPLS` to select another Bifrost host list.
 
 Translate the factorial example:
 
@@ -124,7 +132,7 @@ make test             # Shen regression and golden tests
 make certify          # deterministic certificate bundle
 make backend-check    # Z3 and TPTP4X checks when installed
 make proof            # Lean checks when installed
-make bifrost          # cross-host Shen conformance
+make bifrost          # shen-go, shen-cl, and shen-lua conformance
 make yggdrasil-stage1 # standalone Go packaging gate
 make package          # reproducible source archive and SHA-256 manifest
 ```

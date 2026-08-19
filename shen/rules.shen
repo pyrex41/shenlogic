@@ -295,12 +295,15 @@
   Op [S [A B]] ->
     (rules.int-pair-first Op (rules.ensure-int A S) B))
 (define rules.int-pair-first
-  Op [int IA S] B -> (rules.int-pair-second Op IA (rules.ensure-int B S))
-  _ not-int _ -> [])
+  _ not-int _ -> []
+  Op Tagged B ->
+    (rules.int-pair-second Op (hd (tl Tagged))
+      (rules.ensure-int B (hd (tl (tl Tagged))))))
 (define rules.int-pair-second
-  Op IA [int IB S] ->
-    [(rules.rs-take S [v-int (rules.scalar Op IA IB)])]
-  _ _ not-int -> [])
+  _ _ not-int -> []
+  Op IA Tagged ->
+    [(rules.rs-take (hd (tl (tl Tagged)))
+       [v-int (rules.scalar Op IA (hd (tl Tagged)))])])
 (define rules.ensure-int
   [v-int I] S -> [int I S]
   [v-var X] S ->

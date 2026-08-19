@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   shen:
-    name: Shen 41.2 (shen-go)
+    name: Shen 41.2 (go, cl, lua)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +37,20 @@ jobs:
           git clone https://github.com/pyrex41/bifrost.git ../bifrost
           git -C ../bifrost checkout --detach 4fd876ebb2d5427c750d8c2e059b54d08212373c
           go -C ../bifrost build -o .bin/bifrost .
+
+      - name: Resolve pinned shen-cl and shen-lua checkouts
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y sbcl luajit
+          git clone https://github.com/pyrex41/shen-cl.git ../shen-cl
+          git -C ../shen-cl checkout --detach 096543f8a96bcdafe384a6e7c7484a74ceefc03a
+          make -C ../shen-cl fetch-tarver
+          make -C ../shen-cl precompile SHEN="$(pwd)/../shen-go/.bin/shen-go"
+          make -C ../shen-cl build-sbcl
+          git clone https://github.com/pyrex41/shen-lua.git ../shen-lua
+          git -C ../shen-lua checkout --detach 73d79136dd69033973657105db22d2a4c8ec37ce
+          ../shen-lua/bin/shen -e '(version)'
 
       - name: Run Shen tests
         run: make test check

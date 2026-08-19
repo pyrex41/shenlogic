@@ -12,9 +12,9 @@ PASS <case-id>
 SHENLOGIC|ALL PASS
 ```
 
-Host banners go to stderr. Canonical `.slir`, surface, graph, CHC, and THF
-files are compared byte-for-byte. A host that is unavailable is reported as
-skipped in ordinary development runs and is required for the release matrix.
+Host load chatter is normalized by the suite. Canonical `.slir`, surface,
+graph, CHC, and THF files are compared byte-for-byte inside the shared Shen
+tests. A host that is unavailable is reported as skipped.
 
 The first suite covers factorial, overlapping and repeated-variable patterns,
 Fibonacci, mutual recursion, guard rejection, and v2 Value/constructor cases.
@@ -23,9 +23,10 @@ markers. The suite also checks the byte-canonical SLIR v2 marker.
 
 ## Host policy
 
-Per-change checks require shen-go. Nightly checks add shen-cl and any pinned
-shen-rust, shen-lua, or ShenScript hosts present in the runner. Host revisions
-are recorded in `toolchain.lock`; no floating checkout is a release input.
+Per-change checks require the pinned shen-go, shen-cl, and shen-lua hosts.
+Nightly and release checks may add shen-rust, ShenScript, and other conforming
+41.2 ports. Host revisions are recorded in `toolchain.lock`; no floating
+checkout is a release input.
 
 Yggdrasil/Ratatoskr runs only after Bifrost parity in the release/nightly
 workflow. Its role is to package the translator and compare shaken artifacts,

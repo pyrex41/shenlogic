@@ -3,7 +3,7 @@
   "root": ".",
   "programs_dir": ".",
   "default_cwd": ".",
-  "strip_line_prefixes": ["typechecked in ", "loaded"],
+  "strip_line_prefixes": ["typechecked in ", "loaded", "surface."],
   "cases": [
     {
       "name": "shenlogic-regression",
