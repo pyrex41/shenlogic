@@ -94,6 +94,7 @@
   [_ | Rs] -> (certificate-rule-ids Rs))
 
 (define certificate-rule-path
+  Id [theory _ _ Rules _ _] -> (certificate-rule-path Id Rules)
   Id [rule-ir Rules] -> (certificate-rule-path Id Rules)
   _ [] -> not-found
   Id [[rule Id _ _ Path _ _ _ _] | _] -> [found Path]
