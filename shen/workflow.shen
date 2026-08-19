@@ -57,10 +57,6 @@
             (if (= (hd B) ok)
                 [ok [v-ctor cons [(hd (tl A)) (hd (tl B))]]] B)) A))
   [nil] _ -> [ok [v-ctor nil []]]
-  [ctor Tag Args] Constructors ->
-    (shenlogic.workflow.closed-constructor Tag Args Constructors)
-  [constructor Tag Args] Constructors ->
-    (shenlogic.workflow.closed-constructor Tag Args Constructors)
   [Tag | Args] Constructors ->
     (let Arity (shenlogic.workflow.constructor-arity-list Tag Constructors)
       (if (= Arity not-found)
