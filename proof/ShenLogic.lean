@@ -372,6 +372,27 @@ theorem derives_soundF (rules : List Rule) (f : Functions) {n : String} {as : Li
   · intro a b he r hc; exact he
   · intro a b he r hc; exact he
 
+def premiseDerivesOfSatisfied (rules : List Rule) (f : Functions)
+    (p : Premise) (h : PremiseSatisfied f (DerivesRelation rules f) p) : PremiseDerives rules f p := by
+  cases p with
+  | call n as v => exact PremiseDerives.call n as v h
+  | «matches» p v ρ => exact PremiseDerives.matches p v ρ h
+  | decompose tag v fields => exact PremiseDerives.decompose tag v fields h
+  | notTag tag v => exact PremiseDerives.notTag tag v h
+  | intTest v => exact PremiseDerives.intTest v h
+  | eval e ρ v => exact PremiseDerives.eval e ρ v h
+  | equal a b => exact PremiseDerives.equal a b h
+  | notEqual a b => exact PremiseDerives.notEqual a b h
+
+theorem derives_completeF (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
+    (h : LFPF rules f n as v) : Derives rules f n as v := by
+  have hc : ClosedF rules f (DerivesRelation rules f) := by
+    intro q hq hp
+    apply Derives.apply q hq
+    intro p hpq
+    exact premiseDerivesOfSatisfied rules f p (hp p hpq)
+  exact h (DerivesRelation rules f) hc
+
 theorem derives_step (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
     (h : Derives rules f n as v) : ∃ q, q ∈ rules ∧ q.function = n ∧ q.args = as ∧ q.result = v := by
   cases h with
