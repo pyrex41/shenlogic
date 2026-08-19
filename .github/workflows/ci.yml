@@ -1,0 +1,72 @@
+name: ShenLogic CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shen:
+    name: Shen 41.2 (shen-go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: false
+
+      - name: Resolve pinned shen-go checkout
+        run: |
+          set -eu
+          git clone https://github.com/pyrex41/shen-go.git ../shen-go
+          git -C ../shen-go checkout --detach 77de117b139022300b598f4b0d88cc415f9b6b65
+          mkdir -p ../shen-go/.bin
+          go -C ../shen-go build -o .bin/shen-go ./cmd/shen
+
+      - name: Build pinned Bifrost binary
+        run: |
+          set -eu
+          git clone https://github.com/pyrex41/bifrost.git ../bifrost
+          git -C ../bifrost checkout --detach 4fd876ebb2d5427c750d8c2e059b54d08212373c
+          go -C ../bifrost build -o .bin/bifrost .
+
+      - name: Run Shen tests
+        run: make test check
+
+      - name: Run cross-host suite
+        run: make bifrost
+
+  lean:
+    name: Lean 4 proof checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Lean toolchain
+        run: |
+          set -eu
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build proof project
+        run: cd proof && "$HOME/.elan/bin/lake" build
+
+  static:
+    name: Repository invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject legacy implementation files
+        run: |
+          set -eu
+          if find . -path './.git' -prune -o -type f \( -name '*.py' -o -name 'pyproject.toml' \) -print | grep -q .; then
+            echo 'Legacy implementation files are not permitted.' >&2
+            exit 1
+          fi
+      - name: Check clean-room and license files
+        run: test -s LICENSE && test -s CLEANROOM.md && test -s README.md

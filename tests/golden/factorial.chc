@@ -1,0 +1,7 @@
+(set-logic HORN)
+(declare-rel factorial (Int Int))
+(declare-var factorial_a0 Int)
+(declare-var R0 Int)
+(rule (=> (= factorial_a0 0) (factorial factorial_a0 1)))
+(rule (=> (and (not (= factorial_a0 0)) (factorial (- factorial_a0 1) R0)) (factorial factorial_a0 (* factorial_a0 R0))))
+(check-sat)

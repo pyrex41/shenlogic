@@ -1,0 +1,15 @@
+; ShenLogic typed evaluation graph v1
+(relation fib$ (value value))
+(rule fib_0
+  (when (= fib_a0 0))
+  (derive (fib$ fib_a0 0))
+)
+(rule fib_1
+  (when (and (!= fib_a0 0) (= fib_a0 1)))
+  (derive (fib$ fib_a0 1))
+)
+(rule fib_2
+  (when (and (!= fib_a0 1) (!= fib_a0 0) (fib$ (- fib_a0 1) R0) (fib$ (- fib_a0 2) R1)))
+  (derive (fib$ fib_a0 (+ R0 R1)))
+)
+(least-scc (fib$))

@@ -1,0 +1,6 @@
+name = "shenlogic-proof"
+version = "0.1.0"
+defaultTargets = ["ShenLogic"]
+
+[[lean_lib]]
+name = "ShenLogic"

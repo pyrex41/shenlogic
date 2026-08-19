@@ -1,0 +1,20 @@
+; ShenLogic typed evaluation graph v1
+(relation even?$ (value value))
+(relation odd?$ (value value))
+(rule even?_0
+  (when (= even?_a0 0))
+  (derive (even?$ even?_a0 true))
+)
+(rule even?_1
+  (when (and (!= even?_a0 0) (odd?$ (- even?_a0 1) R0)))
+  (derive (even?$ even?_a0 R0))
+)
+(rule odd?_0
+  (when (= odd?_a0 0))
+  (derive (odd?$ odd?_a0 false))
+)
+(rule odd?_1
+  (when (and (!= odd?_a0 0) (even?$ (- odd?_a0 1) R0)))
+  (derive (odd?$ odd?_a0 R0))
+)
+(least-scc (odd?$ even?$))

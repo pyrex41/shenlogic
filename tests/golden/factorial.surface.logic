@@ -1,0 +1,2 @@
+((factorial 0) = 1)
+(all X ((~ (X = 0)) => ((factorial X) = (* X (factorial (- X 1))))))

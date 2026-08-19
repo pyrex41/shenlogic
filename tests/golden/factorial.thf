@@ -1,0 +1,5 @@
+% ShenLogic typed higher-order specification
+thf(sl_factorial_type,type,($int > $int > $o)).
+thf(rule_sl_factorial_0,axiom,(! [V_factorial_a0:$int] : (((V_factorial_a0 = 0) => (sl_factorial @ V_factorial_a0 @ 1))))).
+thf(rule_sl_factorial_1,axiom,(! [V_factorial_a0:$int,V_R0:$int] : ((((V_factorial_a0 != 0) & (sl_factorial @ $difference(V_factorial_a0,1) @ V_R0)) => (sl_factorial @ V_factorial_a0 @ $product(V_factorial_a0,V_R0)))))).
+thf(least_sl_factorial,axiom,(! [R_sl_factorial:($int > $int > $o)] : (((! [V_factorial_a0:$int] : (((V_factorial_a0 = 0) => (R_sl_factorial @ V_factorial_a0 @ 1))) & ! [V_factorial_a0:$int,V_R0:$int] : ((((V_factorial_a0 != 0) & (R_sl_factorial @ $difference(V_factorial_a0,1) @ V_R0)) => (R_sl_factorial @ V_factorial_a0 @ $product(V_factorial_a0,V_R0))))) => ! [V_A0:$int,V_Result:$int] : ((sl_factorial @ V_A0 @ V_Result) => (R_sl_factorial @ V_A0 @ V_Result)))))).

@@ -1,0 +1,17 @@
+{
+  "name": "shenlogic",
+  "root": ".",
+  "programs_dir": ".",
+  "default_cwd": ".",
+  "strip_line_prefixes": ["typechecked in ", "loaded"],
+  "cases": [
+    {
+      "name": "shenlogic-regression",
+      "mode": "script",
+      "program": "tests/run-all.shen",
+      "expect": "agreement",
+      "marker": "SHENLOGIC|ALL PASS",
+      "doc": "Shen-to-logic regression corpus must agree across Shen hosts"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+shen-version 41.2
+host shen-go
+host-version 1.25
+host-repository https://github.com/pyrex41/shen-go.git
+host-revision 77de117b139022300b598f4b0d88cc415f9b6b65
+bifrost-repository https://github.com/pyrex41/bifrost.git
+bifrost-revision 4fd876ebb2d5427c750d8c2e059b54d08212373c
+yggdrasil-repository https://github.com/pyrex41/yggdrasil.git
+yggdrasil-revision f3f7f9bdb72680719544f1cba7b1298608e20112
+lean-version 4.19

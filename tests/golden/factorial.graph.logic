@@ -1,0 +1,11 @@
+; ShenLogic typed evaluation graph v1
+(relation factorial$ (value value))
+(rule factorial_0
+  (when (= factorial_a0 0))
+  (derive (factorial$ factorial_a0 1))
+)
+(rule factorial_1
+  (when (and (!= factorial_a0 0) (factorial$ (- factorial_a0 1) R0)))
+  (derive (factorial$ factorial_a0 (* factorial_a0 R0)))
+)
+(least-scc (factorial$))

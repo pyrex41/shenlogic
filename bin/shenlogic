@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ -n "${SHEN_GO:-}" ]; then
+  HOST=$SHEN_GO
+elif [ -x "$ROOT/../shen-go/.bin/shen-go" ]; then
+  HOST=$ROOT/../shen-go/.bin/shen-go
+elif command -v shen-go >/dev/null 2>&1; then
+  HOST=$(command -v shen-go)
+else
+  echo "shenlogic: shen-go not found (set SHEN_GO)" >&2
+  exit 127
+fi
+case $HOST in
+  /*) ;;
+  */*) HOST=$(CDPATH= cd -- "$(dirname -- "$HOST")" && pwd)/$(basename -- "$HOST") ;;
+esac
+cd "$ROOT"
+exec "$HOST" script shen/cli.shen "$@"

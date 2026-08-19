@@ -1,0 +1,20 @@
+# Shen and editor caches
+.shen-kernel-cache*.bin
+.shen-cache/
+.cache/
+.DS_Store
+
+# Generated translation and proof artifacts
+build/
+dist/
+out/
+/*.slir
+/*.logic
+/*.chc
+/*.thf
+*.olean
+/.lake/
+
+# Local toolchain checkouts and credentials
+/vendor/
+.env
