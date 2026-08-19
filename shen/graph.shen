@@ -96,12 +96,13 @@
   [= A B] -> (@s "(= " (graph.term A) " " (graph.term B) ")")
   [!= A B] -> (@s "(!= " (graph.term A) " " (graph.term B) ")")
   [match P A] -> (@s "(match " (graph.term P) " " (graph.term A) ")")
-  [decompose Tag A] -> (@s "(decompose " (graph.atom Tag) " "
-                              (graph.term A) ")")
-  [not-tag Tag A] -> (@s "(not-tag " (graph.atom Tag) " "
-                             (graph.term A) ")")
-  [int-test Test A] -> (@s "(int-test " (graph.atom Test) " "
-                               (graph.term A) ")")
+  [decompose V Tag Fields] -> (@s "(decompose " (graph.term V) " "
+                                     (graph.atom Tag) " ("
+                                     (graph.term-list Fields) "))")
+  [not-tag V Tag] -> (@s "(not-tag " (graph.term V) " "
+                              (graph.atom Tag) ")")
+  [int-test Op A B] -> (@s "(int-test " (graph.atom Op) " "
+                                (graph.term A) " " (graph.term B) ")")
   [not-applicable I Patterns Args Guard] ->
     (@s "(not-applicable " (graph.atom I) " (" (graph.term-list Patterns)
         ") (" (graph.term-list Args) ") " (graph.term Guard) ")")
