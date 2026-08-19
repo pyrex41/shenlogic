@@ -369,8 +369,8 @@
           (shenlogic.chc.v2-quote (str X))))
 
 (define shenlogic.chc.v2-quote
-  S -> (let Q (pos (serialize.canonical "") 0)
-         (@s Q (shenlogic.chc.v2-escape S) Q)))
+  S -> (if (string? S) (serialize-string S)
+           (serialize-string (str S))))
 
 (define shenlogic.chc.v2-escape
   "" -> ""

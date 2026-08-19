@@ -4,7 +4,7 @@
   [program Definitions] ->
     (let Names (map (/. D (shenlogic.ast.definition-name D)) Definitions)
       (let Rules (rules.compile-definitions Definitions Names)
-        [theory [value-signature (rules.value-signature Definitions)]
+        [theory [value-signature (rules.value-signature [program Definitions])]
                 (rules.relations Definitions)
                 Rules
                 (rules.sccs Definitions Names)
@@ -13,10 +13,10 @@
 
 (define rules.value-signature
   Program -> (rules.value-signature-with Program
-    [[constructor int int 1] [constructor true true 0]
-     [constructor false false 0] [constructor symbol symbol 1]
-     [constructor string string 1] [constructor nil nil 0]
-     [constructor cons cons 2]]))
+    (reverse [[constructor int int 1] [constructor true true 0]
+      [constructor false false 0] [constructor symbol symbol 1]
+      [constructor string string 1] [constructor nil nil 0]
+      [constructor cons cons 2]])))
 
 (define rules.value-signature-with
   [program Definitions] Acc ->
@@ -114,6 +114,10 @@
 
 \\ Pattern matching returns [pm Success FailureStates].
 (define rules.match-pattern
+  [p-wild] V S -> [pm S []]
+  [p-var X] V S -> (rules.match-pattern X V S)
+  [p-lit X] V S -> (rules.match-pattern X V S)
+  [p-ctor Tag Fields] V S -> (rules.match-constructor-normalized Tag Fields V S)
   P V S ->
     (if (= P _)
         [pm S []]
@@ -172,6 +176,16 @@
               [pm (hd (tl M))
                   (cons (rules.rs-prem S [not-tag V Tag])
                         (hd (tl (tl M))))]))))))
+(define rules.match-constructor-normalized
+  Tag Patterns V S ->
+    (let C (rules.rs-c S)
+      (let Fields (rules.make-fields Patterns C)
+        (let D (rules.rs-prem S [decompose V Tag Fields])
+          (let B (rules.add-fields D Fields)
+            (let M (rules.match-patterns Patterns Fields B)
+              [pm (hd (tl M))
+                  (cons (rules.rs-prem S [not-tag V Tag])
+                        (hd (tl (tl M))))]))))))
 (define rules.make-fields
   [] _ -> []
   [_ | Ps] C -> [[v-var (rules.fresh "M" (+ C (length Ps)))] |
@@ -185,6 +199,18 @@
 \\ Expression compiler returns a list of states and is strict by recursive
 \\ argument traversal.  Boolean expressions split into true/false paths.
 (define rules.expr
+  [e-var X] S Ns -> [(rules.rs-take S (rules.term X (rules.rs-e S)))]
+  [e-value X] S _ -> [(rules.rs-take S (rules.term X (rules.rs-e S)))]
+  [e-ctor Tag Args] S Ns -> (rules.constructor Tag Args S Ns)
+  [e-call Op Args] S Ns -> (rules.call Op Args S Ns)
+  [e-if C T F] S Ns -> (let B (rules.bool C S Ns)
+                        (append (rules.expr-list [T] (hd (tl B)) Ns)
+                                (rules.expr-list [F] (hd (tl (tl B))) Ns)))
+  [e-let X A B] S Ns -> (let Q (rules.expr A S Ns)
+                         (rules.let-list X B Q Ns))
+  [e-and A B] S Ns -> (rules.app and [A B] S Ns)
+  [e-or A B] S Ns -> (rules.app or [A B] S Ns)
+  [e-prim Op Args] S Ns -> (rules.app Op Args S Ns)
   E S Names ->
     (if (variable? E) [(rules.rs-take S (rules.term E (rules.rs-e S)))]
         (if (or (number? E) (string? E) (= E true) (= E false))
