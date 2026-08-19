@@ -10,7 +10,36 @@
 \\   values:      ctor-value
 
 (define evaluator-evaluate
-  Program Expr Fuel -> (evaluator-expr Program Expr [] Fuel))
+  Program Expr Fuel -> (evaluator-expr Program
+                          (evaluator-input Program Expr) [] Fuel))
+
+\\ Query expressions may still be in the reader's source representation.  Run
+\\ them through the same closed-world normalizer used for clause bodies so
+\\ constructor applications (for example (node 7)) are values rather than
+\\ accidental function calls.  Already-tagged e-* nodes are left untouched.
+(define evaluator-input
+  [program Definitions] Expr ->
+    (if (evaluator-normalized-expression? Expr)
+        Expr
+        (let Names (map (/. D (shenlogic.ast.definition-name D)) Definitions)
+          (let Env (shenlogic.ast.constructor-environment [program Definitions])
+            (shenlogic.ast.normalize-expr Expr Names (hd (tl Env))))))
+  _ Expr -> Expr)
+
+(define evaluator-normalized-expression?
+  [e-var _] -> true
+  [e-value _] -> true
+  [e-lit _] -> true
+  [e-call _ _] -> true
+  [e-apply _ _] -> true
+  [e-ctor _ _] -> true
+  [e-constructor _ _] -> true
+  [e-if _ _ _] -> true
+  [e-let _ _ _] -> true
+  [e-and _ _] -> true
+  [e-or _ _] -> true
+  [e-prim _ _] -> true
+  _ -> false)
 
 (define evaluator-ok
   [value _] -> true

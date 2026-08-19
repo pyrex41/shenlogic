@@ -18,10 +18,19 @@
 (define shenlogic.ast.normalize-signature
   none -> none
   [signature Args Result] -> [signature Args Result]
-  Type -> (let Parts (shenlogic.ast.signature-parts Type [] false)
+  Type -> (let Parts (shenlogic.ast.signature-parts
+                        (shenlogic.ast.signature-source-list Type) [] false)
              (if (= (hd Parts) ok)
                  [signature (hd (hd (tl Parts))) (hd (tl (hd (tl Parts))))]
                  [error sl-a001 Type])))
+
+\\ A declaration's bracketed type arrives from the raw reader as an explicit
+\\ cons chain (unlike an inline brace signature's token list).  Flatten only
+\\ that representation; leave ordinary terms untouched for diagnostics.
+(define shenlogic.ast.signature-source-list
+  [cons X Xs] -> [X | (shenlogic.ast.signature-source-list Xs)]
+  [] -> []
+  X -> X)
 
 (define shenlogic.ast.signature-parts
   [] _ _ -> [error sl-a001 []]
@@ -163,6 +172,11 @@
       (shenlogic.ast.constructor-pattern P Acc)))
 
 (define shenlogic.ast.constructor-pattern
+  [p-ctor Tag Ps] Acc ->
+    (let Next (if (shenlogic.ast.constructor-entry-arity? Tag (length Ps) Acc)
+                  Acc
+                  [[constructor Tag Tag (length Ps)] | Acc])
+      (shenlogic.ast.constructor-patterns-normalized Ps Next))
   P Acc ->
     (let N (shenlogic.ast.normalize-pattern P)
       (shenlogic.ast.constructor-node N Acc)))
