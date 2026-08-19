@@ -23,8 +23,9 @@
 (define certificate-check-v2
   Source [value-signature Constructors] DecisionIR RuleIR CHCAST THFAST
   LoweringSteps [name-map Pairs] ->
-    (if (certificate-list? Constructors)
-        (if (certificate-rule-ir? RuleIR)
+    (if (certificate-constructors? Constructors)
+        (if (certificate-theory-v2? RuleIR [value-signature Constructors]
+                                  [name-map Pairs])
             (if (certificate-list? DecisionIR)
                 (if (certificate-list? CHCAST)
                     (if (certificate-list? THFAST)
@@ -44,6 +45,26 @@
   [] -> true
   [_ | Xs] -> (certificate-list? Xs)
   _ -> false)
+
+(define certificate-constructors?
+  [] -> true
+  [[constructor Source Target Arity] | Cs] ->
+    (certificate-constructors? Cs)
+  _ -> false)
+
+(define certificate-theory-v2?
+  [theory ValueSignature Relations Rules SCCs NameMap]
+  ExpectedValueSignature ExpectedNameMap ->
+    (if (= ValueSignature ExpectedValueSignature)
+        (if (= NameMap ExpectedNameMap)
+            (if (certificate-list? Relations)
+                (if (certificate-rules-v2? Rules [])
+                    (certificate-list? SCCs)
+                    false)
+                false)
+            false)
+        false)
+  _ _ _ -> false)
 
 (define certificate-name-pairs?
   [] -> true
@@ -94,8 +115,20 @@
     (certificate-path-ref? Id Path Rules)
   [lower Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
   [step Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
-  [_ | _] _ -> true
-  _ _ -> true)
+  [Tag | _] _ -> (certificate-known-lowering-tag? Tag)
+  _ _ -> false)
+
+(define certificate-known-lowering-tag?
+  lowering-step -> true
+  lowering -> true
+  step -> true
+  backend -> true
+  rule -> true
+  source -> true
+  decision -> true
+  chc -> true
+  thf -> true
+  _ -> false)
 
 (define certificate-path-ref?
   Id Path Rules -> (let Found (certificate-rule-path Id Rules)
