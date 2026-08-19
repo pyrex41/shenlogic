@@ -46,6 +46,7 @@
                   (cons [constructor T T A] Acc)))))))
 
 (define rules.pattern-tag
+  [p-ctor Tag _] -> Tag
   P -> (if (cons? P)
            (if (= (hd P) cons) cons
                (if (or (= (hd P) ctor) (= (hd P) constructor))
@@ -53,6 +54,7 @@
            (if (= P []) nil none)))
 
 (define rules.pattern-arity
+  [p-ctor _ Fields] -> (length Fields)
   P -> (if (cons? P)
            (if (= (hd P) cons) 2
                (if (or (= (hd P) ctor) (= (hd P) constructor))
@@ -173,7 +175,7 @@
         (let D (rules.rs-prem S [decompose V Tag Fields])
           (let B (rules.add-fields D Fields)
             (let M (rules.match-patterns Patterns Fields B)
-              [pm (hd (tl M))
+              [pm (hd (hd (tl M)))
                   (cons (rules.rs-prem S [not-tag V Tag])
                         (hd (tl (tl M))))]))))))
 (define rules.match-constructor-normalized
@@ -183,7 +185,7 @@
         (let D (rules.rs-prem S [decompose V Tag Fields])
           (let B (rules.add-fields D Fields)
             (let M (rules.match-patterns Patterns Fields B)
-              [pm (hd (tl M))
+              [pm (hd (hd (tl M)))
                   (cons (rules.rs-prem S [not-tag V Tag])
                         (hd (tl (tl M))))]))))))
 (define rules.make-fields
