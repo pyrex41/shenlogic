@@ -192,9 +192,9 @@
                  (rules.make-fields Ps C)])
 (define rules.add-fields
   S [] -> S
-  [[v-var X] | Xs] S ->
+  S [[v-var X] | Xs] ->
     (rules.add-fields (rules.rs-bound S [v-var X]) Xs)
-  [_ | Xs] S -> (rules.add-fields S Xs))
+  S [_ | Xs] -> (rules.add-fields S Xs))
 
 \\ Expression compiler returns a list of states and is strict by recursive
 \\ argument traversal.  Boolean expressions split into true/false paths.
@@ -204,10 +204,9 @@
   [e-ctor Tag Args] S Ns -> (rules.constructor Tag Args S Ns)
   [e-call Op Args] S Ns -> (rules.call Op Args S Ns)
   [e-if C T F] S Ns -> (let B (rules.bool C S Ns)
-                        (append (rules.expr-list [T] (hd (tl B)) Ns)
-                                (rules.expr-list [F] (hd (tl (tl B))) Ns)))
-  [e-let X A B] S Ns -> (let Q (rules.expr A S Ns)
-                         (rules.let-list X B Q Ns))
+                        (append (rules.expr-frontier T (hd (tl B)) Ns)
+                                (rules.expr-frontier F (hd (tl (tl B))) Ns)))
+  [e-let X A B] S Ns -> (rules.let-expr X A B S Ns)
   [e-and A B] S Ns -> (rules.app and [A B] S Ns)
   [e-or A B] S Ns -> (rules.app or [A B] S Ns)
   [e-prim Op Args] S Ns -> (rules.app Op Args S Ns)
@@ -220,21 +219,18 @@
 
 (define rules.app
   if [C T F] S Ns -> (let B (rules.bool C S Ns)
-                      (append (rules.expr-list [T] (hd (tl B)) Ns)
-                              (rules.expr-list [F] (hd (tl (tl B))) Ns)))
+                      (append (rules.expr-frontier T (hd (tl B)) Ns)
+                              (rules.expr-frontier F (hd (tl (tl B))) Ns)))
   let [X A B] S Ns -> (let Q (rules.expr A S Ns)
-                        (rules.let-list X B Q Ns))
+                        (rules.let-frontier X B Q Ns))
   and [A B] S Ns -> (let Q (rules.bool A S Ns)
                       (append (map (/. X (rules.rs-take X v-false))
                                    (hd (tl (tl Q))))
-                              (rules.expr-list [B] (hd (tl Q)) Ns)))
+                              (rules.expr-frontier B (hd (tl Q)) Ns)))
   or [A B] S Ns -> (let Q (rules.bool A S Ns)
                      (append (map (/. X (rules.rs-take X v-true)) (hd (tl Q)))
-                             (rules.expr-list [B] (hd (tl (tl Q))) Ns)))
-  cons [A B] S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
-                       (map (/. X (rules.rs-take X
-                         [v-ctor cons (rules.arg-values X)])) (hd (tl Q))))
-  list Xs S Ns -> (rules.list-expr Xs S Ns)
+                             (rules.expr-frontier B (hd (tl (tl Q))) Ns)))
+  cons [A B] S Ns -> (rules.constructor cons [A B] S Ns)
   + [A B] S Ns -> (rules.int-expr + A B S Ns)
   - [A B] S Ns -> (rules.int-expr - A B S Ns)
   * [A B] S Ns -> (rules.int-expr * A B S Ns)
@@ -249,23 +245,38 @@
                        (rules.call Op Args S Ns)
                        (rules.constructor Op Args S Ns)))
 
-(define rules.arg-values
-  [rs _ _ _ _ V] -> [V])
-(define rules.expr-list
-  [] Ss _ -> Ss
-  [E | Es] Ss Ns -> (let Q (rules.expr-list-one E Ss Ns)
-                     (rules.expr-list Es (hd (tl Q)) Ns)))
-(define rules.expr-list-one
-  _ [] _ -> [many [] []]
-  E [S | Ss] Ns -> (let Q (rules.expr E S Ns)
-                    (let R (rules.expr-list-one E Ss Ns)
-                      [many (append Q (hd (tl R))) []])))
-(define rules.let-list
+(define rules.expr-frontier
+  _ [] _ -> []
+  E [S | Ss] Ns -> (append (rules.expr E S Ns)
+                          (rules.expr-frontier E Ss Ns)))
+
+\\ Evaluate arguments left-to-right, retaining each argument term separately.
+(define rules.eval-args
+  Args S Ns -> (rules.eval-args-frontier Args [[S []]] Ns))
+(define rules.eval-args-frontier
+  [] Pairs _ -> Pairs
+  [E | Es] Pairs Ns ->
+    (rules.eval-args-frontier Es (rules.eval-arg E Pairs Ns) Ns))
+(define rules.eval-arg
+  _ [] _ -> []
+  E [[S Ts] | Ps] Ns ->
+    (append (rules.eval-arg-one E S Ts Ns)
+            (rules.eval-arg E Ps Ns)))
+(define rules.eval-arg-one
+  E S Ts Ns -> (rules.eval-arg-states (rules.expr E S Ns) Ts))
+(define rules.eval-arg-states
+  [] _ -> []
+  [S | Ss] Ts -> [[S (append Ts [(rules.rs-t S)])] |
+                  (rules.eval-arg-states Ss Ts)])
+
+(define rules.let-expr
+  X A B S Ns -> (rules.let-frontier X B (rules.expr A S Ns) Ns))
+(define rules.let-frontier
   _ _ [] _ -> []
   X B [S | Ss] Ns -> (append (rules.expr B
                               (rules.rs-env S (cons [X (rules.rs-t S)]
                                                     (rules.rs-e S))) Ns)
-                            (rules.let-list X B Ss Ns)))
+                            (rules.let-frontier X B Ss Ns)))
 
 (define rules.scalar
   + A B -> [i-add A B]
@@ -276,14 +287,30 @@
   [v-var X] -> [i-var X]
   X -> [i-lit X])
 (define rules.int-expr
-  Op A B S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
-                  (map (/. X (rules.rs-take X
-                    [v-int (rules.scalar Op (rules.int (hd (rules.arg-values X)))
-                                           (rules.int (hd (rules.arg-values X))))]))
-                       (hd (tl Q)))))
+  Op A B S Ns ->
+    (map (/. Pair (rules.int-pair Op Pair))
+         (rules.eval-args [A B] S Ns)))
+(define rules.int-pair
+  Op [S [A B]] ->
+    (rules.int-pair-first Op (rules.ensure-int A S) B))
+(define rules.int-pair-first
+  Op [int IA S] B -> (rules.int-pair-second Op IA (rules.ensure-int B S)))
+(define rules.int-pair-second
+  Op IA [int IB S] ->
+    (rules.rs-take S [v-int (rules.scalar Op IA IB)]))
+(define rules.ensure-int
+  [v-int I] S -> [int I S]
+  [v-var X] S ->
+    [int [i-var X]
+         (rules.rs-bound
+           (rules.rs-prem S [value-eq [v-var X] [v-int [i-var X]]])
+           [i-var X])]
+  X S -> [int (rules.int X) S])
 (define rules.bool-expr
   Op A B S Ns -> (let Q (rules.bool [Op A B] S Ns)
-                  (append (hd (tl Q)) (hd (tl (tl Q))))))
+                  (append (map (/. X (rules.rs-take X v-true)) (hd (tl Q)))
+                          (map (/. X (rules.rs-take X v-false))
+                               (hd (tl (tl Q)))))))
 
 (define rules.bool
   true S _ -> [bool [S] []]
@@ -318,49 +345,59 @@
                      (cons (rules.rs-prem S [value-neq (rules.rs-t S) v-true])
                            (hd (tl (tl R))))]))
 (define rules.compare
-  Op A B S Ns -> (let Q (rules.expr-list [A B] [S] Ns)
-                  (let Out (hd (tl Q))
-                    [bool (map (/. X (rules.rs-prem X
-                                  (if (= Op =) [value-eq (rules.rs-t X) (rules.rs-t X)]
-                                      [int-test Op (rules.int (rules.rs-t X))
-                                                 (rules.int (rules.rs-t X))]))) Out)
-                          []])))
+  Op A B S Ns ->
+    (let Pairs (rules.eval-args [A B] S Ns)
+      (let Both (rules.compare-pairs Op Pairs)
+        [bool (rules.firsts Both) (rules.seconds Both)])))
+(define rules.compare-pairs
+  _ [] -> []
+  Op [[S [A B]] | Ps] ->
+    (if (or (= Op =) (= Op neq))
+        [[(rules.rs-prem S (if (= Op =) [value-eq A B]
+                              [value-neq A B]))
+          (rules.rs-prem S (if (= Op =) [value-neq A B]
+                              [value-eq A B]))] |
+         (rules.compare-pairs Op Ps)]
+        [[(rules.rs-prem S [int-test Op (rules.int A) (rules.int B)])
+          (rules.rs-prem S [int-test (rules.compare-negate Op)
+                            (rules.int A) (rules.int B)])] |
+         (rules.compare-pairs Op Ps)]))
+(define rules.compare-negate
+  < -> >=
+  > -> <=
+  <= -> >
+  >= -> <)
+(define rules.firsts
+  [] -> []
+  [[A _] | Xs] -> [A | (rules.firsts Xs)])
+(define rules.seconds
+  [] -> []
+  [[_ B] | Xs] -> [B | (rules.seconds Xs)])
 
 (define rules.call
-  Op Args S Ns -> (rules.call-args Op Args S Ns []))
-(define rules.call-args
-  Op [] S _ Rev ->
-    (let R (rules.fresh "R" (rules.rs-c S))
-      (let Q (rules.rs-counter (rules.rs-bound S [v-var R])
-                               (+ (rules.rs-c S) 1))
-        [(rules.rs-take (rules.rs-prem Q [call Op (reverse Rev) [v-var R]])
-                        [v-var R])]))
-  Op [A | As] S Ns Rev ->
-    (let Q (rules.expr A S Ns)
-      (rules.call-args-list Op As Q Ns Rev)))
-(define rules.call-args-list
-  _ _ [] _ _ -> []
-  Op As [S | Ss] Ns Rev ->
-    (append (rules.call-args Op As S Ns [(rules.rs-t S) | Rev])
-            (rules.call-args-list Op As Ss Ns Rev)))
-(define rules.call-list
+  Op Args S Ns -> (rules.call-pairs Op (rules.eval-args Args S Ns)))
+(define rules.call-pairs
   _ [] -> []
-  Op [S | Ss] -> (let R (rules.fresh "R" (rules.rs-c S))
-                    (let Q (rules.rs-counter (rules.rs-bound S [v-var R])
-                                             (+ (rules.rs-c S) 1))
-                    (let P (rules.rs-prem Q [call Op (rules.arg-values Q) [v-var R]])
-                      [(rules.rs-take P [v-var R]) | (rules.call-list Op Ss)]))))
+  Op [[S Ts] | Ps] ->
+    [(rules.emit-call Op S Ts) | (rules.call-pairs Op Ps)])
+(define rules.emit-call
+  Op S Ts -> (let R (rules.fresh "R" (rules.rs-c S))
+               (let Q (rules.rs-counter (rules.rs-bound S [v-var R])
+                                        (+ (rules.rs-c S) 1))
+                 (rules.rs-take (rules.rs-prem Q [call Op Ts [v-var R]])
+                                 [v-var R]))))
 (define rules.constructor
-  Tag Args S Ns -> (let Q (rules.expr-list Args [S] Ns)
-                    (map (/. X (rules.rs-take X
-                               [v-ctor Tag (rules.arg-values X)])) (hd (tl Q)))))
+  Tag Args S Ns -> (rules.constructor-pairs Tag (rules.eval-args Args S Ns)))
+(define rules.constructor-pairs
+  _ [] -> []
+  Tag [[S Ts] | Ps] ->
+    [(rules.rs-take S [v-ctor Tag Ts]) |
+     (rules.constructor-pairs Tag Ps)])
 (define rules.list-expr
-  [] S _ -> [(rules.rs-take S [v-ctor nil []])]
-  [E | Es] S Ns -> (let H (rules.expr E S Ns)
-                    (let T (rules.list-expr Es S Ns)
-                      (map (/. X (rules.rs-take X
-                                [v-ctor cons [(rules.rs-t X) (rules.rs-t X)]]))
-                           (append H T)))))
+  Es S Ns -> (rules.expr (rules.list-node Es) S Ns))
+(define rules.list-node
+  [] -> [e-ctor nil []]
+  [E | Es] -> [e-ctor cons [E (rules.list-node Es)]])
 (define rules.do-expr
   [] S _ -> [(rules.rs-take S v-true)]
   [E] S Ns -> (rules.expr E S Ns)
@@ -406,7 +443,7 @@
   [some G] S Ns -> (rules.guard-expr G S Ns)
   G S Ns -> (rules.guard-expr G S Ns))
 (define rules.guard-expr
-  _ S Ns -> (let B (rules.bool _ S Ns)
+  G S Ns -> (let B (rules.bool G S Ns)
              [guard (hd (tl B)) (hd (tl (tl B)))]))
 (define rules.leaves
   _ [] -> []
