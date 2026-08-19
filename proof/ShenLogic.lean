@@ -393,6 +393,12 @@ theorem derives_completeF (rules : List Rule) (f : Functions) {n : String} {as :
     exact premiseDerivesOfSatisfied rules f p (hp p hpq)
   exact h (DerivesRelation rules f) hc
 
+theorem derives_iff_lfpF (rules : List Rule) (f : Functions) (n : String) (as : List Value) (v : Value) :
+    Derives rules f n as v ↔ LFPF rules f n as v := by
+  constructor
+  · exact derives_soundF rules f
+  · exact derives_completeF rules f
+
 theorem derives_step (rules : List Rule) (f : Functions) {n : String} {as : List Value} {v : Value}
     (h : Derives rules f n as v) : ∃ q, q ∈ rules ∧ q.function = n ∧ q.args = as ∧ q.result = v := by
   cases h with
