@@ -281,6 +281,15 @@ theorem step_monotone (rules : List Rule) {r s : Relation}
 def Closed (rules : List Rule) (r : Relation) : Prop :=
   ∀ q, q ∈ rules → RuleSatisfied (fun _ _ => none) r q → r q.function q.args q.result
 
+theorem closed_iff_step (rules : List Rule) (r : Relation) :
+    Closed rules r ↔ ∀ n as v, Step rules r n as v → r n as v := by
+  constructor
+  · intro hc n as v hs
+    rcases hs with ⟨q, hq, rfl, rfl, rfl, hp⟩
+    exact hc q hq hp
+  · intro hs q hq hp
+    exact hs q.function q.args q.result ⟨q, hq, rfl, rfl, rfl, hp⟩
+
 def FiniteDerivation (rules : List Rule) (f : Functions) (q : Rule) : Prop :=
   q ∈ rules ∧ ∀ r : Relation, Closed rules r → RuleSatisfied f r q →
     r q.function q.args q.result
