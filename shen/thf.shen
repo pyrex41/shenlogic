@@ -506,11 +506,11 @@
 
 (define shenlogic.thf.v2-all-constructors
   Constructors ->
-    [[constructor v-int v_int 1]
-     [constructor v-true v_true 0]
-     [constructor v-false v_false 0]
-     [constructor v-symbol v_symbol 1]
-     [constructor v-string v_string 1] |
+    [[constructor int int 1]
+     [constructor true true 0]
+     [constructor false false 0]
+     [constructor symbol symbol 1]
+     [constructor string string 1] |
      Constructors])
 
 (define shenlogic.thf.v2-constructor-decls
@@ -526,15 +526,15 @@
       (shenlogic.thf.v2-constructor-decls-list Cs Map)))
 
 (define shenlogic.thf.v2-ctor-type
-  v-int _ -> "$int > value"
-  v-symbol _ -> "$i > value"
-  v-string _ -> "$i > value"
+  int _ -> "$int > value"
+  symbol _ -> "$i > value"
+  string _ -> "$i > value"
   _ Arity -> (shenlogic.thf.v2-fun-type Arity "value"))
 
 (define shenlogic.thf.v2-ctor-arg-type
-  v-int -> "$int"
-  v-symbol -> "$i"
-  v-string -> "$i"
+  int -> "$int"
+  symbol -> "$i"
+  string -> "$i"
   _ -> "value")
 
 (define shenlogic.thf.v2-fun-type
@@ -629,14 +629,14 @@
 
 (define shenlogic.thf.v2-term
   [v-var X] _ _ -> (shenlogic.thf.v2-var X)
-  [v-int I] Bound Map -> (@s "(v_int @ " (shenlogic.thf.v2-int I Bound Map) ")")
-  v-true _ _ -> "v_true"
-  v-false _ _ -> "v_false"
+  [v-int I] Bound Map -> (@s "(sl_ctor_int @ " (shenlogic.thf.v2-int I Bound Map) ")")
+  v-true _ _ -> "sl_ctor_true"
+  v-false _ _ -> "sl_ctor_false"
   [v-true] _ _ -> "v_true"
   [v-false] _ _ -> "v_false"
-  [v-symbol S] Bound Map -> (@s "(v_symbol @ "
+  [v-symbol S] Bound Map -> (@s "(sl_ctor_symbol @ "
     (shenlogic.thf.v2-symbol S Bound Map) ")")
-  [v-string S] Bound Map -> (@s "(v_string @ "
+  [v-string S] Bound Map -> (@s "(sl_ctor_string @ "
     (shenlogic.thf.v2-string S Bound Map) ")")
   [v-ctor Tag Args] Bound Map ->
     (shenlogic.thf.v2-apply Tag Args Bound Map)

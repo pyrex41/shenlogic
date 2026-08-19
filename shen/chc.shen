@@ -394,6 +394,11 @@
   Target I -> (@s (shenlogic.chc.v2-name Target) "_f" (str I)))
 
 (define shenlogic.chc.v2-accessor-for
+  int 0 _ -> "VInt_value"
+  symbol 0 _ -> "VSymbol_value"
+  string 0 _ -> "VString_value"
+  cons 0 _ -> "VCons_head"
+  cons 1 _ -> "VCons_tail"
   Tag I Constructors ->
     (let Target (shenlogic.chc.v2-ctor-target Tag Constructors)
       (shenlogic.chc.v2-accessor Target I)))
