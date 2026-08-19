@@ -8,3 +8,11 @@ bifrost-revision 4fd876ebb2d5427c750d8c2e059b54d08212373c
 yggdrasil-repository https://github.com/pyrex41/yggdrasil.git
 yggdrasil-revision f3f7f9bdb72680719544f1cba7b1298608e20112
 lean-version 4.19
+z3-version 4.15.3
+tptp4x-version git
+tptp4x-repository https://github.com/TPTPWorld/TPTP4X.git
+tptp4x-revision 781de44267f9561be28dbef89dbada54129641bf
+jjparser-repository https://github.com/TPTPWorld/JJParser.git
+jjparser-revision 14611475bb2e0e946609889167dcc5db9f93eb17
+tptp4x-entrypoint tptp4X
+source-date-epoch 0

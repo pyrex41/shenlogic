@@ -1,7 +1,14 @@
-.PHONY: host test smoke proof bifrost test-all package check
+.PHONY: host test smoke proof bifrost test-all package check certify query \
+	backend-check yggdrasil-stage1 shellcheck
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
 export SHEN_GO
+VERSION ?= 0.2.0
+SOURCE_DATE_EPOCH ?= 0
+TAR_OWNER ?= 0
+TAR_GROUP ?= 0
+
+export SOURCE_DATE_EPOCH
 
 host:
 	$(SHEN_GO) --version
@@ -10,24 +17,72 @@ test:
 	$(SHEN_GO) script tests/run-all.shen
 
 smoke:
-	$(SHEN_GO) script shen/cli.shen test
+	$(SHEN_GO) script shenlogic-cli.shen test
 
 check:
-	$(SHEN_GO) script shen/cli.shen check examples/factorial.shen
+	$(SHEN_GO) script shenlogic-cli.shen check examples/factorial.shen
+
+certify:
+	mkdir -p build/certificate
+	./bin/shenlogic certify examples/factorial.shen --out build/certificate
+
+query:
+	./bin/shenlogic query examples/factorial.shen "(factorial 5)" 120 --backend chc
+
+backend-check:
+	mkdir -p build/backends
+	./bin/shenlogic translate examples/factorial.shen --format chc -o build/backends/factorial.chc
+	./bin/shenlogic translate examples/factorial.shen --format thf -o build/backends/factorial.thf
+	@if command -v z3 >/dev/null 2>&1; then z3 -smt2 build/backends/factorial.chc; else echo 'SKIP: z3 is not installed'; fi
+	@if command -v tptp4X >/dev/null 2>&1; then tptp4X build/backends/factorial.thf; else echo 'SKIP: TPTP4X is not installed'; fi
 
 proof:
 	@if command -v lake >/dev/null 2>&1; then cd proof && lake build; else echo 'SKIP: lake is not installed'; fi
 
 bifrost:
-	@if command -v bifrost >/dev/null 2>&1; then BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls shen-go; \
-	elif [ -x ../bifrost/.bin/bifrost ]; then BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls shen-go; \
+	@if [ -x ../bifrost/.bin/bifrost ]; then BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls shen-go; \
+	elif command -v bifrost >/dev/null 2>&1; then BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls shen-go; \
 	else echo 'SKIP: bifrost binary not found'; fi
 
-test-all: test smoke proof bifrost
+test-all: test smoke proof bifrost certify backend-check
 
 package:
-	mkdir -p dist
-	tar -czf dist/shenlogic-dev.tar.gz \
-		--exclude='./.git' --exclude='./dist' --exclude='./build' \
-		--exclude='*/.lake' --exclude='*/.lake/*' --exclude='*.bin' \
-		--exclude='./shenlogic-cleanroom-source.tar.gz' .
+	@set -eu; \
+	case "$(SOURCE_DATE_EPOCH)" in ''|*[!0-9]*) echo 'SOURCE_DATE_EPOCH must be a non-negative integer' >&2; exit 2;; esac; \
+	mkdir -p dist; \
+	rm -f "dist/shenlogic-$(VERSION).tar.gz" dist/SHA256SUMS; \
+	files=$$(mktemp "$${TMPDIR:-/tmp}/shenlogic-package.XXXXXX"); \
+	trap 'rm -f "$$files"' EXIT HUP INT TERM; \
+	find . \( -path './.git' -o -path './dist' -o -path './build' -o -path '*/.lake' \) -prune -o -type f ! -name '*.bin' ! -name 'shenlogic-cleanroom-source.tar.gz' -print | LC_ALL=C sort > "$$files"; \
+	if tar --version 2>/dev/null | grep -q 'GNU tar'; then \
+		tar --sort=name --mtime="@$(SOURCE_DATE_EPOCH)" --owner=$(TAR_OWNER) --group=$(TAR_GROUP) --numeric-owner -cf "dist/shenlogic-$(VERSION).tar" -T "$$files"; \
+	else \
+		stage=$$(mktemp -d "$${TMPDIR:-/tmp}/shenlogic-stage.XXXXXX"); \
+		archive=$$(pwd)/dist/shenlogic-$(VERSION).tar; \
+		if stamp=$$(date -u -d "@$(SOURCE_DATE_EPOCH)" '+%Y%m%d%H%M.%S' 2>/dev/null); then :; \
+		elif stamp=$$(date -u -r "$(SOURCE_DATE_EPOCH)" '+%Y%m%d%H%M.%S' 2>/dev/null); then :; \
+		else echo 'cannot convert SOURCE_DATE_EPOCH for portable tar' >&2; exit 2; fi; \
+		trap 'rm -f "$$files"; rm -rf "$$stage"' EXIT HUP INT TERM; \
+		while IFS= read -r path; do \
+			dst="$$stage/$$path"; mkdir -p "$$(dirname "$$dst")"; cp -p "$$path" "$$dst"; \
+			touch -h -t "$$stamp" "$$dst"; \
+		done < "$$files"; \
+		find "$$stage" -type d -exec touch -h -t "$$stamp" {} +; \
+		(cd "$$stage" && tar --format ustar --uid $(TAR_OWNER) --gid $(TAR_GROUP) --numeric-owner -cf "$$archive" .); \
+	fi; \
+	gzip -n -f "dist/shenlogic-$(VERSION).tar"; \
+	sha256sum "dist/shenlogic-$(VERSION).tar.gz" > dist/SHA256SUMS
+
+yggdrasil-stage1:
+	@if command -v yggdrasil >/dev/null 2>&1; then \
+		GOFLAGS=-mod=mod yggdrasil shake shenlogic-cli.shen build/yggdrasil-stage1 -host "$(SHEN_GO)" -eval-style sub && \
+		GOFLAGS=-mod=mod yggdrasil build shenlogic-cli.shen build/yggdrasil-go --target go -host "$(SHEN_GO)" -eval-style sub && \
+		test -s build/yggdrasil-stage1/kernel.kl && test -x build/yggdrasil-go/app-go-bin; \
+	elif [ -x ../yggdrasil/.bin/yggdrasil ]; then \
+		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil shake shenlogic-cli.shen build/yggdrasil-stage1 -host "$(SHEN_GO)" -eval-style sub && \
+		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil build shenlogic-cli.shen build/yggdrasil-go --target go -host "$(SHEN_GO)" -eval-style sub && \
+		test -s build/yggdrasil-stage1/kernel.kl && test -x build/yggdrasil-go/app-go-bin; \
+	else echo 'SKIP: yggdrasil binary not found'; fi
+
+shellcheck:
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic; else echo 'SKIP: shellcheck is not installed'; fi

@@ -18,7 +18,7 @@ jobs:
       - name: Install Go toolchain
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.x'
+          go-version: '1.25.0'
           cache: false
 
       - name: Resolve pinned shen-go checkout
@@ -38,6 +38,31 @@ jobs:
 
       - name: Run Shen tests
         run: make test check
+
+      - name: Run proof certificate gate
+        run: make certify
+
+      - name: Check solver and TPTP toolchain
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y z3
+          z3 --version
+          TPTP4X_REV=781de44267f9561be28dbef89dbada54129641bf
+          JJPARSER_REV=14611475bb2e0e946609889167dcc5db9f93eb17
+          TPTP4X_ROOT=/tmp/tptp4x
+          mkdir -p "$TPTP4X_ROOT"
+          git clone https://github.com/TPTPWorld/TPTP4X.git "$TPTP4X_ROOT/TPTP4X"
+          git -C "$TPTP4X_ROOT/TPTP4X" checkout --detach "$TPTP4X_REV"
+          git clone https://github.com/TPTPWorld/JJParser.git "$TPTP4X_ROOT/JJParser"
+          git -C "$TPTP4X_ROOT/JJParser" checkout --detach "$JJPARSER_REV"
+          make -C "$TPTP4X_ROOT/TPTP4X" -j2
+          TPTP4X="$TPTP4X_ROOT/TPTP4X/tptp4X"
+          mkdir -p build/backends
+          ./bin/shenlogic translate examples/factorial.shen --format chc -o build/backends/factorial.chc
+          ./bin/shenlogic translate examples/factorial.shen --format thf -o build/backends/factorial.thf
+          z3 -smt2 build/backends/factorial.chc
+          "$TPTP4X" -q1 -u machine build/backends/factorial.thf
 
       - name: Run cross-host suite
         run: make bifrost
@@ -70,3 +95,32 @@ jobs:
           fi
       - name: Check clean-room and license files
         run: test -s LICENSE && test -s CLEANROOM.md && test -s README.md
+      - name: Shell syntax and deterministic package checks
+        run: |
+          set -eu
+          sh -n bin/shenlogic
+          SOURCE_DATE_EPOCH=0 make package
+          test -s dist/SHA256SUMS
+
+  yggdrasil-stage1:
+    name: Yggdrasil stage1 Go packaging (release/nightly)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Resolve pinned Yggdrasil checkout
+        run: |
+          set -eu
+          git clone https://github.com/pyrex41/yggdrasil.git ../yggdrasil
+          git -C ../yggdrasil checkout --detach f3f7f9bdb72680719544f1cba7b1298608e20112
+          mkdir -p ../yggdrasil/.bin
+          GOFLAGS=-mod=mod go -C ../yggdrasil build -o .bin/yggdrasil .
+      - name: Run isolated stage1 target
+        env:
+          GOFLAGS: -mod=mod
+        run: make yggdrasil-stage1
