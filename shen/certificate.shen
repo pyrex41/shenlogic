@@ -6,9 +6,9 @@
 \\ SMT/THF proof.  The small v1 derivation replay is retained for compatibility.
 
 (define certificate-check
-  [shenlogic-certificate 1 NormalizedSource ValueSignature DecisionIR RuleIR
-                          CHCAST THFAST LoweringSteps NameMap] ->
-    (certificate-check-v2 NormalizedSource ValueSignature DecisionIR RuleIR
+  [shenlogic-certificate 1 NormalizedSource ValueSignature DecisionIR Theory
+                          [chc CHCAST] [thf THFAST] LoweringSteps NameMap] ->
+    (certificate-check-v2 NormalizedSource ValueSignature DecisionIR Theory
                            CHCAST THFAST LoweringSteps NameMap)
   _ -> [error malformed-certificate])
 
@@ -21,25 +21,190 @@
   Theory Certificate -> (certificate-replay Theory Certificate))
 
 (define certificate-check-v2
-  Source [value-signature Constructors] DecisionIR RuleIR CHCAST THFAST
-  LoweringSteps [name-map Pairs] ->
-    (if (certificate-constructors? Constructors)
-        (if (certificate-theory-v2? RuleIR [value-signature Constructors]
-                                  [name-map Pairs])
-            (if (certificate-list? DecisionIR)
-                (if (certificate-list? CHCAST)
-                    (if (certificate-list? THFAST)
-                        (if (certificate-name-pairs? Pairs)
-                            (if (certificate-lowering-valid? LoweringSteps RuleIR)
-                                [ok]
-                                [error invalid-lowering-path])
+  Source ValueSignature DecisionIR Theory CHCAST THFAST LoweringSteps NameMap ->
+    (if (certificate-normalized-program? Source)
+        (if (certificate-theory-v2-shape? Theory)
+            (if (= ValueSignature (certificate-theory-value-signature Theory))
+                (if (= NameMap (certificate-theory-name-map Theory))
+                    (if (certificate-value-signature? ValueSignature)
+                        (if (certificate-name-map? NameMap)
+                            (if (certificate-decision-exact? Source DecisionIR)
+                                (certificate-check-compiled-theory Source Theory
+                                  CHCAST THFAST LoweringSteps)
+                                [error decision-mismatch])
                             [error malformed-name-map])
-                        [error malformed-thfast])
-                    [error malformed-chcast])
-                [error malformed-decision-ir])
+                        [error malformed-value-signature])
+                    [error name-map-mismatch])
+                [error value-signature-mismatch])
             [error malformed-rule-ir])
-        [error malformed-value-signature])
+        [error malformed-normalized-source])
   _ _ _ _ _ _ _ _ -> [error malformed-certificate])
+
+\\ The normalized AST is the trust boundary.  Reject raw source terms and any
+\\ tagged node outside the fixed v2 vocabulary.
+(define certificate-normalized-program?
+  [program Definitions] -> (certificate-definitions? Definitions)
+  _ -> false)
+
+(define certificate-definitions?
+  [] -> true
+  [[definition Name Signature Clauses Arity] | Ds] ->
+    (and (symbol? Name) (certificate-signature? Signature)
+         (integer? Arity) (>= Arity 0) (certificate-clauses? Clauses)
+         (certificate-definitions? Ds))
+  _ -> false)
+
+(define certificate-signature?
+  none -> true
+  [signature Args Result] ->
+    (and (certificate-list? Args) (certificate-term-schema? Result))
+  _ -> false)
+
+(define certificate-clauses?
+  [] -> true
+  [[clause Index Patterns Guard Body] | Cs] ->
+    (and (integer? Index) (certificate-patterns? Patterns)
+         (certificate-guard-schema? Guard) (certificate-expr-schema? Body)
+         (certificate-clauses? Cs))
+  _ -> false)
+
+(define certificate-patterns?
+  [] -> true
+  [P | Ps] -> (and (certificate-pattern-schema? P)
+                   (certificate-patterns? Ps))
+  _ -> false)
+
+(define certificate-pattern-schema?
+  [p-wild] -> true
+  [p-var X] -> (variable? X)
+  [p-lit X] -> (certificate-atom? X)
+  [p-ctor Tag Fields] ->
+    (and (symbol? Tag) (certificate-patterns? Fields))
+  _ -> false)
+
+(define certificate-guard-schema?
+  none -> true
+  [some E] -> (certificate-expr-schema? E)
+  _ -> false)
+
+(define certificate-expr-schema?
+  [e-var X] -> (variable? X)
+  [e-value X] -> (certificate-atom? X)
+  [e-ctor Tag Args] -> (and (symbol? Tag) (certificate-exprs? Args))
+  [e-call Name Args] -> (and (symbol? Name) (certificate-exprs? Args))
+  [e-if C T F] -> (and (certificate-expr-schema? C)
+                       (certificate-expr-schema? T)
+                       (certificate-expr-schema? F))
+  [e-let X A B] -> (and (variable? X)
+                        (certificate-expr-schema? A)
+                        (certificate-expr-schema? B))
+  [e-and A B] -> (and (certificate-expr-schema? A)
+                      (certificate-expr-schema? B))
+  [e-or A B] -> (and (certificate-expr-schema? A)
+                     (certificate-expr-schema? B))
+  [e-prim Op Args] -> (and (symbol? Op) (certificate-exprs? Args))
+  _ -> false)
+
+(define certificate-exprs?
+  [] -> true
+  [E | Es] -> (and (certificate-expr-schema? E)
+                   (certificate-exprs? Es))
+  _ -> false)
+
+(define certificate-atom?
+  X -> (or (number? X) (string? X) (symbol? X)))
+
+(define certificate-term-schema?
+  X -> (if (cons? X)
+           (certificate-term-list-schema? X)
+           true))
+
+(define certificate-term-list-schema?
+  [] -> true
+  [X | Xs] -> (and (certificate-term-schema? X)
+                   (certificate-term-list-schema? Xs))
+  _ -> false)
+
+(define certificate-theory-v2-shape?
+  [theory [value-signature Constructors] Relations Rules SCCs [name-map Pairs]] ->
+    (and (certificate-constructors? Constructors)
+         (certificate-relations? Relations)
+         (certificate-rules-v2? Rules [])
+         (certificate-sccs? SCCs) (certificate-name-pairs? Pairs))
+  _ -> false)
+
+(define certificate-theory-value-signature
+  [theory VS _ _ _ _] -> VS
+  _ -> malformed)
+
+(define certificate-theory-name-map
+  [theory _ _ _ _ NM] -> NM
+  _ -> malformed)
+
+(define certificate-value-signature?
+  [value-signature Constructors] -> (certificate-constructors? Constructors)
+  _ -> false)
+
+(define certificate-name-map?
+  [name-map Pairs] -> (certificate-name-pairs? Pairs)
+  _ -> false)
+
+(define certificate-relations?
+  [] -> true
+  [[relation Name Sorts Result] | Rs] ->
+    (and (symbol? Name) (certificate-list? Sorts) (= Result value)
+         (certificate-relations? Rs))
+  _ -> false)
+
+(define certificate-sccs?
+  [] -> true
+  [[scc Names] | Ss] ->
+    (and (certificate-symbol-list? Names) (certificate-sccs? Ss))
+  _ -> false)
+
+(define certificate-symbol-list?
+  [] -> true
+  [X | Xs] -> (and (symbol? X) (certificate-symbol-list? Xs))
+  _ -> false)
+
+\\ Decision and Rule IR are deterministic functions of normalized source.
+(define certificate-decision-exact?
+  Source Decision ->
+    (let Expected (trap-error (decision.compile Source) (/. E malformed))
+      (and (not (= Expected malformed)) (= Expected Decision))))
+
+(define certificate-check-compiled-theory
+  Source Theory CHCAST THFAST LoweringSteps ->
+    (let Expected (trap-error (rules.compile Source) (/. E malformed))
+      (if (= Expected malformed)
+          [error theory-unavailable]
+          (if (= Expected Theory)
+              (if (certificate-chc-equal? Theory CHCAST)
+                  (if (certificate-thf-equal? Theory THFAST)
+                      (if (certificate-lowering-valid? LoweringSteps Theory)
+                          [ok]
+                          [error invalid-lowering-coverage])
+                      [error thf-mismatch])
+                  [error chc-mismatch])
+              [error theory-mismatch]))))
+
+(define certificate-chc-equal?
+  Theory Artifact ->
+    (if (string? Artifact)
+        (let R (trap-error (shenlogic.chc.render Theory nonlinear)
+                           (/. E render-error))
+          (if (and (cons? R) (= (hd R) ok))
+              (= (hd (tl R)) Artifact) false))
+        false))
+
+(define certificate-thf-equal?
+  Theory Artifact ->
+    (if (string? Artifact)
+        (let R (trap-error (shenlogic.thf.render Theory full-model)
+                           (/. E render-error))
+          (if (and (cons? R) (= (hd R) ok))
+              (= (hd (tl R)) Artifact) false))
+        false))
 
 (define certificate-list?
   [] -> true
@@ -104,32 +269,40 @@
 \\ [lowering-step RuleId Path ...] or [step RuleId Path ...].  Accept both,
 \\ while recursively accepting tagged containers and opaque backend records.
 (define certificate-lowering-valid?
-  [] _ -> true
-  [S | Ss] Rules -> (if (certificate-lowering-step-valid? S Rules)
-                        (certificate-lowering-valid? Ss Rules)
-                        false)
-  S Rules -> (certificate-lowering-step-valid? S Rules))
-
-(define certificate-lowering-step-valid?
-  [lowering-steps Steps] Rules -> (certificate-lowering-valid? Steps Rules)
-  [lowering-step Id Path | _] Rules ->
-    (certificate-path-ref? Id Path Rules)
-  [lower Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
-  [step Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
-  [Tag | _] _ -> (certificate-known-lowering-tag? Tag)
+  Steps [theory _ _ Rules _ _] ->
+    (certificate-lowering-consume Steps
+      (certificate-lowering-expected Rules))
   _ _ -> false)
 
-(define certificate-known-lowering-tag?
-  lowering-step -> true
-  lowering -> true
-  step -> true
-  backend -> true
-  rule -> true
-  source -> true
-  decision -> true
-  chc -> true
-  thf -> true
-  _ -> false)
+(define certificate-lowering-expected
+  [] -> []
+  [[rule Id _ _ Path _ _ _ _] | Rs] ->
+    (append [[key Id Path chc] [key Id Path thf]]
+      (certificate-lowering-expected Rs))
+  _ -> [invalid])
+
+(define certificate-lowering-consume
+  [] [] -> true
+  [] _ -> false
+  [S | Ss] Expected ->
+    (let K (certificate-lowering-key S)
+      (if (= K invalid)
+          false
+          (if (element? K Expected)
+              (certificate-lowering-consume Ss
+                (certificate-lowering-remove K Expected))
+              false)))
+  _ _ -> false)
+
+(define certificate-lowering-key
+  [lowering-step Id Path chc] -> [key Id Path chc]
+  [lowering-step Id Path thf] -> [key Id Path thf]
+  _ -> invalid)
+
+(define certificate-lowering-remove
+  K [K | Ks] -> Ks
+  K [X | Xs] -> [X | (certificate-lowering-remove K Xs)]
+  _ [] -> [])
 
 (define certificate-path-ref?
   Id Path Rules -> (let Found (certificate-rule-path Id Rules)

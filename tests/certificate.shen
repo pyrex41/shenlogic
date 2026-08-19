@@ -43,21 +43,70 @@
 
 \\ Complete v2 bundles are checked through the one-argument public entrypoint.
 (define certificate-test-bundle
-  -> [shenlogic-certificate 1
-      [program]
-      [value-signature []]
-      []
-      [[rule r0 fact clause0 [path] [] [] [] [v-int [i-lit 1]]]]
-      []
-      []
-      []
-      [name-map []]])
+  -> (certificate-test-v2-bundle))
+
+(define certificate-test-v2-source
+  -> [program [[definition fact none
+                 [[clause 0 [] none [e-value 1]]] 0]]])
+
+(define certificate-test-v2-bundle
+  -> (let P (certificate-test-v2-source)
+       (let T (rules.compile P)
+         (let C (shenlogic.unwrap (shenlogic.chc.render T nonlinear))
+           (let H (shenlogic.unwrap (shenlogic.thf.render T full-model))
+             (let VS (certificate-theory-value-signature T)
+               (let NM (certificate-theory-name-map T)
+                 (let D (decision.compile P)
+                   (let Steps (shenlogic.workflow.lowering-steps
+                                 (shenlogic.workflow.theory-rules T))
+                     [shenlogic-certificate 1 P VS D T [chc C] [thf H]
+                      Steps NM]))))))))
 
 (define certificate-test-bundle-success
   -> (= (certificate-check (certificate-test-bundle)) [ok]))
 
 (define certificate-test-bundle-rejects-rule-shape
   -> (= (certificate-check
-          [shenlogic-certificate 1 [program] [value-signature []] []
-           [[rule r0 fact clause0 [path] [] [] []]] [] [] [] [name-map []]])
+          (certificate-test-bundle-bad-theory (certificate-test-v2-bundle)))
          [error malformed-rule-ir]))
+
+(define certificate-test-bundle-bad-theory
+  [shenlogic-certificate V P VS D _ C H S NM] ->
+    [shenlogic-certificate V P VS D
+     [theory VS [] [[bad]] [] NM] C H S NM])
+
+(define certificate-test-bundle-rejects-stale-vs
+  -> (= (certificate-check
+          (certificate-test-bundle-stale-vs (certificate-test-v2-bundle)))
+         [error value-signature-mismatch]))
+
+(define certificate-test-bundle-stale-vs
+  [shenlogic-certificate V P _ D T C H S NM] ->
+    [shenlogic-certificate V P [value-signature []] D T C H S NM])
+
+(define certificate-test-bundle-rejects-artifact-edit
+  -> (= (certificate-check
+          (certificate-test-bundle-artifact-edit (certificate-test-v2-bundle)))
+         [error chc-mismatch]))
+
+(define certificate-test-bundle-artifact-edit
+  [shenlogic-certificate V P VS D T [chc C] H S NM] ->
+    [shenlogic-certificate V P VS D T [chc (cn C "x")] H S NM])
+
+(define certificate-test-bundle-rejects-missing-lowering
+  -> (= (certificate-check
+          (certificate-test-bundle-missing-lowering (certificate-test-v2-bundle)))
+         [error invalid-lowering-coverage]))
+
+(define certificate-test-bundle-missing-lowering
+  [shenlogic-certificate V P VS D T C H [_ | Ss] NM] ->
+    [shenlogic-certificate V P VS D T C H Ss NM])
+
+(define certificate-test-bundle-rejects-raw-source
+  -> (= (certificate-check
+          (certificate-test-bundle-raw-source (certificate-test-v2-bundle)))
+         [error malformed-normalized-source]))
+
+(define certificate-test-bundle-raw-source
+  [shenlogic-certificate V _ VS D T C H S NM] ->
+    [shenlogic-certificate V [define fact] VS D T C H S NM])
