@@ -45,7 +45,7 @@
   [] _ -> [none []]
   [X | Tail] Rev ->
     (if (and (not (cons? X)) (= (str X) "}"))
-        [[signature (reverse Rev) unknown] Tail]
+        [(shenlogic.ast.normalize-signature (reverse Rev)) Tail]
         (shenlogic.reader.signature-loop Tail [X | Rev])))
 
 (define shenlogic.reader.clauses
@@ -84,7 +84,7 @@
 
 (define shenlogic.reader.lookup-signature
   _ [] -> none
-  Name [[Name Type] | _] -> [signature Type unknown]
+  Name [[Name Type] | _] -> (shenlogic.ast.normalize-signature Type)
   Name [_ | Rest] -> (shenlogic.reader.lookup-signature Name Rest))
 
 (define shenlogic.reader.attach-signature
