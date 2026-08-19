@@ -235,8 +235,12 @@ theorem choose_first_sound (f : Functions) (v : Value) (c : Clause) (cs : List C
 inductive Premise where
   | call (name : String) (args : List Value) (result : Value)
   | match (pattern : Pattern) (input : Value) (env : Bindings)
+  | decompose (tag : String) (input : Value) (fields : List Value)
+  | notTag (tag : String) (input : Value)
+  | intTest (input : Value)
   | eval (expr : Expr) (env : Bindings) (result : Value)
   | equal (left right : Value)
+  | notEqual (left right : Value)
   deriving Repr
 
 structure Rule where
@@ -250,8 +254,12 @@ structure Rule where
 def PremiseSatisfied (f : Functions) (r : Relation) : Premise → Prop
   | .call n as v => r n as v
   | .match p v ρ => Pattern.match p v = some ρ
+  | .decompose tag input fields => input = .ctor tag fields
+  | .notTag tag input => ∀ fields, input ≠ .ctor tag fields
+  | .intTest input => ∃ n : Int, input = .int n
   | .eval e ρ v => eval f ρ e = some v
   | .equal a b => a = b
+  | .notEqual a b => a ≠ b
 
 def RuleSatisfied (f : Functions) (r : Relation) (q : Rule) : Prop :=
   ∀ p, p ∈ q.premises → PremiseSatisfied f r p
