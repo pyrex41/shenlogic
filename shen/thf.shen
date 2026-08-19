@@ -364,11 +364,13 @@
 (define shenlogic.thf.v2-symbol-valid?
   [s-var X] Bound -> (shenlogic.thf.v2-bound-has? s-var X Bound)
   [s-lit _] _ -> true
+  X _ -> (if (cons? X) false true)
   _ _ -> false)
 
 (define shenlogic.thf.v2-string-valid?
   [s-var X] Bound -> (shenlogic.thf.v2-bound-has? s-var X Bound)
   [s-lit _] _ -> true
+  X _ -> (if (cons? X) false true)
   _ _ -> false)
 
 (define shenlogic.thf.v2-int-valid?
@@ -654,11 +656,13 @@
 
 (define shenlogic.thf.v2-symbol
   [s-var X] _ _ -> (shenlogic.thf.v2-svar X)
-  [s-lit S] _ _ -> (@s "sl_sym_" (shenlogic.thf.v2-safe S)))
+  [s-lit S] _ _ -> (@s "sl_sym_" (shenlogic.thf.v2-safe S))
+  S _ _ -> (@s "sl_sym_" (shenlogic.thf.v2-safe S)))
 
 (define shenlogic.thf.v2-string
   [s-var X] _ _ -> (shenlogic.thf.v2-svar X)
-  [s-lit S] _ _ -> (@s "sl_str_" (shenlogic.thf.v2-safe S)))
+  [s-lit S] _ _ -> (@s "sl_str_" (shenlogic.thf.v2-safe S))
+  S _ _ -> (@s "sl_str_" (shenlogic.thf.v2-safe S)))
 
 (define shenlogic.thf.v2-apply
   Tag Args Bound Map ->
