@@ -85,6 +85,13 @@
                     (let R (shenlogic.query-file "examples/factorial.shen"
                                                  "(factorial 5)" "120" "chc")
                       (and (= (hd R) ok) (= (hd (tl R)) "chc"))))
+          (sl-check "query-expected-value-is-emitted"
+                    (let Good (shenlogic.query-file "examples/factorial.shen"
+                                                    "(factorial 5)" "120" "chc")
+                         Bad (shenlogic.query-file "examples/factorial.shen"
+                                                   "(factorial 5)" "121" "chc")
+                      (not (= (hd (tl (tl Good)))
+                              (hd (tl (tl Bad)))))))
           (sl-check "query-rejects-open-value"
                     (= (shenlogic.query-file "examples/factorial.shen"
                                              "(factorial X)" "120" "chc")
@@ -270,6 +277,7 @@
                     (sl-rejected? "tests/fixtures/separate-declaration.shen"))]
        (if (sl-all-true Results)
            (do (output "SHENLOGIC|ALL PASS~%") true)
-           (do (output "SHENLOGIC|SOME FAIL~%") false))))
+           (do (output "SHENLOGIC|SOME FAIL~%")
+               (error "ShenLogic regression failure")))))
 
 (sl-run)
