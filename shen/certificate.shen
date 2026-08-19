@@ -1,12 +1,109 @@
-\\ Finite derivation certificate checker.  Theory contract:
-\\ [theory Declarations Rules SCCs], rules are
-\\ [rule Id Function Args Bound Premises Result].
-\\ Certificate steps are [step Id Substitution Premises Result], ordered so
-\\ premises precede their conclusion.  Checker is deliberately conservative.
+\\ Certificate artifacts.
+\\
+\\ v2 certificates are self-describing bundles.  The checker validates the
+\\ bundle shape and the references which can be checked without a backend
+\\ (rule ids and lowering paths); it deliberately does not claim to replay an
+\\ SMT/THF proof.  The small v1 derivation replay is retained for compatibility.
 
 (define certificate-check
+  [shenlogic-certificate 1 NormalizedSource ValueSignature DecisionIR RuleIR
+                          CHCAST THFAST LoweringSteps NameMap] ->
+    (certificate-check-v2 NormalizedSource ValueSignature DecisionIR RuleIR
+                           CHCAST THFAST LoweringSteps NameMap)
+  _ -> [error malformed-certificate])
+
+(define shenlogic.certificate.check
+  Certificate -> (certificate-check Certificate))
+
+\\ Legacy finite replay remains available explicitly, but is not the v2
+\\ certificate entry point.
+(define certificate-replay-check
   Theory Certificate -> (certificate-replay Theory Certificate))
 
+(define certificate-check-v2
+  Source [value-signature Constructors] DecisionIR RuleIR CHCAST THFAST
+  LoweringSteps [name-map Pairs] ->
+    (if (certificate-list? Constructors)
+        (if (certificate-rule-ir? RuleIR)
+            (if (certificate-list? DecisionIR)
+                (if (certificate-list? CHCAST)
+                    (if (certificate-list? THFAST)
+                        (if (certificate-name-pairs? Pairs)
+                            (if (certificate-lowering-valid? LoweringSteps RuleIR)
+                                [ok]
+                                [error invalid-lowering-path])
+                            [error malformed-name-map])
+                        [error malformed-thfast])
+                    [error malformed-chcast])
+                [error malformed-decision-ir])
+            [error malformed-rule-ir])
+        [error malformed-value-signature])
+  _ _ _ _ _ _ _ _ -> [error malformed-certificate])
+
+(define certificate-list?
+  [] -> true
+  [_ | Xs] -> (certificate-list? Xs)
+  _ -> false)
+
+(define certificate-name-pairs?
+  [] -> true
+  [[_ _] | Ps] -> (certificate-name-pairs? Ps)
+  _ -> false)
+
+(define certificate-rule-ir?
+  [rule-ir Rules] -> (certificate-rules-v2? Rules [])
+  Rules -> (certificate-rules-v2? Rules []))
+
+(define certificate-rules-v2?
+  [] _ -> true
+  [[rule Id Function Clause Path Args Bound Premises Result] | Rs] Seen ->
+    (if (element? Id Seen)
+        false
+        (if (and (certificate-list? Args) (certificate-list? Bound))
+            (if (certificate-list? Premises)
+                (certificate-rules-v2? Rs [Id | Seen])
+                false)
+            false))
+  _ _ -> false)
+
+(define certificate-rule-ids
+  [rule-ir Rules] -> (certificate-rule-ids Rules)
+  [] -> []
+  [[rule Id _ _ _ _ _ _ _] | Rs] -> [Id | (certificate-rule-ids Rs)]
+  [_ | Rs] -> (certificate-rule-ids Rs))
+
+(define certificate-rule-path
+  Id [rule-ir Rules] -> (certificate-rule-path Id Rules)
+  _ [] -> not-found
+  Id [[rule Id _ _ Path _ _ _ _] | _] -> [found Path]
+  Id [_ | Rs] -> (certificate-rule-path Id Rs))
+
+\\ Lowering steps in released artifacts have appeared as either
+\\ [lowering-step RuleId Path ...] or [step RuleId Path ...].  Accept both,
+\\ while recursively accepting tagged containers and opaque backend records.
+(define certificate-lowering-valid?
+  [] _ -> true
+  [S | Ss] Rules -> (if (certificate-lowering-step-valid? S Rules)
+                        (certificate-lowering-valid? Ss Rules)
+                        false)
+  S Rules -> (certificate-lowering-step-valid? S Rules))
+
+(define certificate-lowering-step-valid?
+  [lowering-steps Steps] Rules -> (certificate-lowering-valid? Steps Rules)
+  [lowering-step Id Path | _] Rules ->
+    (certificate-path-ref? Id Path Rules)
+  [lower Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
+  [step Id Path | _] Rules -> (certificate-path-ref? Id Path Rules)
+  [_ | _] _ -> true
+  _ _ -> true)
+
+(define certificate-path-ref?
+  Id Path Rules -> (let Found (certificate-rule-path Id Rules)
+                     (if (= Found not-found)
+                         false
+                         (= (hd (tl Found)) Path))))
+
+\\ v1 finite derivation replay.
 (define certificate-replay
   Theory Certificate -> (certificate-replay-previous Theory Certificate []))
 
@@ -31,18 +128,23 @@
 
 (define certificate-rules
   [theory D Rs Ss] -> Rs
+  [theory VS D Rs Ss NM] -> Rs
   [_] -> [])
 
 (define certificate-rule
   Id [] -> false
   Id [[rule I F A B Ps R] | Rs] -> (if (= Id I) [rule I F A B Ps R] (certificate-rule Id Rs))
+  Id [[rule I F C P A B Ps R] | Rs] ->
+    (if (= Id I) [rule I F C P A B Ps R] (certificate-rule Id Rs))
   Id [_ | Rs] -> (certificate-rule Id Rs))
 
 (define certificate-rule-result
-  [rule I F A B Ps R] -> R)
+  [rule _ _ _ _ _ _ _ R] -> R
+  [rule _ _ _ _ _ R] -> R)
 
 (define certificate-rule-premises
-  [rule I F A B Ps R] -> Ps)
+  [rule _ _ _ _ _ _ Ps _] -> Ps
+  [rule _ _ _ _ Ps _] -> Ps)
 
 (define certificate-instantiate-list
   [] S -> []
@@ -66,6 +168,5 @@
   P [[derive I S Ps R] | Ss] -> (if (= P R) true (certificate-has-premise? P Ss))
   P [_ | Ss] -> (certificate-has-premise? P Ss))
 
-\\ Aliases used by early clients.
 (define shenlogic-check-certificate
-  Theory Certificate -> (certificate-check Theory Certificate))
+  Certificate -> (certificate-check Certificate))
