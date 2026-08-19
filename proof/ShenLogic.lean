@@ -164,6 +164,20 @@ namespace V2
 abbrev Relation := String → List Value → Value → Prop
 abbrev Triple := String × List Value × Value
 
+inductive Term where
+  | literal (v : Value)
+  | variable (name : String)
+  deriving Repr
+
+def Term.denote (ρ : Bindings) : Term → Option Value
+  | .literal v => some v
+  | .variable x => ρ.lookup x
+
+theorem term_denote_deterministic (ρ : Bindings) (t : Term) {a b : Value}
+    (ha : Term.denote ρ t = some a) (hb : Term.denote ρ t = some b) : a = b := by
+  rw [ha] at hb
+  injection hb
+
 /- Pattern propositions and paths -/
 
 def PatternHolds (p : Pattern) (v : Value) : Prop :=
