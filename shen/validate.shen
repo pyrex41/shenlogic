@@ -3,13 +3,21 @@
 (define shenlogic.validate.program
   [program Definitions] ->
     (let Names (map (/. D (shenlogic.ast.definition-name D)) Definitions)
-      (let Errors (append (shenlogic.validate.name-errors Names [])
-                    (append (shenlogic.validate.signature-errors Definitions)
-                      (append (shenlogic.validate.constructor-errors
-                                (shenlogic.ast.constructor-environment [program Definitions]))
-                        (shenlogic.validate.definitions Definitions Names []))))
+      (let Errors (shenlogic.validate.program-errors-env [program Definitions] Definitions Names)
         (if (= Errors []) [ok [program Definitions]] [errors (reverse Errors)])))
   X -> [errors [[sl-v000 X]]])
+
+(define shenlogic.validate.program-errors-env
+  Program Definitions Names ->
+    (append (shenlogic.validate.name-errors Names [])
+      (append (shenlogic.validate.signature-errors Definitions)
+        (append (shenlogic.validate.constructor-errors
+                  (shenlogic.ast.constructor-environment Program))
+          (shenlogic.validate.definitions-env Definitions Names
+            (shenlogic.validate.constructor-list Program) [])))))
+
+(define shenlogic.validate.constructor-list
+  Program -> (hd (tl (shenlogic.ast.constructor-environment Program))))
 
 (define shenlogic.validate.constructor-tags
   [] -> []
@@ -71,6 +79,66 @@
   _ [] -> none
   Tag [[Tag Arity] | _] -> [found Arity]
   Tag [_ | Ss] -> (shenlogic.validate.constructor-prior Tag Ss))
+
+\\ Body validation carries the closed-world constructor environment.  A
+\\ constructor is admissible only when its pattern established tag/arity is
+\\ present; unknown applications remain diagnostics.
+(define shenlogic.validate.definitions-env
+  [] _ _ Errors -> Errors
+  [D | Ds] Names Constructors Errors ->
+    (shenlogic.validate.definitions-env Ds Names Constructors
+      (append (shenlogic.validate.definition-env D Names Constructors) Errors)))
+
+(define shenlogic.validate.definition-env
+  [definition Name _ Clauses Arity] Names Constructors ->
+    (shenlogic.validate.clauses-env Clauses Arity Names Constructors Name)
+  X _ _ -> [[sl-v001 X]])
+
+(define shenlogic.validate.clauses-env
+  [] _ _ _ _ -> []
+  [[clause I Patterns Guard Body] | Cs] Arity Names Constructors Name ->
+    (append
+      (if (= (length Patterns) Arity) [] [[sl-v002 Name I]])
+      (append (shenlogic.validate.patterns Patterns)
+          (append (shenlogic.validate.guard Guard Names)
+          (append (shenlogic.validate.expr-env Body Names Constructors)
+            (shenlogic.validate.clauses-env Cs Arity Names Constructors Name))))))
+
+(define shenlogic.validate.expr-env
+  E Names Constructors ->
+    (if (number? E)
+        (if (integer? E) [] [[sl-v010 E]])
+        (if (cons? E)
+            (shenlogic.validate.application-env E Names Constructors)
+            [])))
+
+(define shenlogic.validate.application-env
+  [] _ _ -> []
+  [Op | Args] Names Constructors ->
+    (if (cons? Op)
+        [[sl-v022 higher-order-callee Op]]
+        (if (element? Op [/ div mod do effect set! set freeze eval load open close trap-error <-])
+            [[sl-v020 Op]]
+            (append
+              (shenlogic.validate.application-arity Op Args)
+              (if (and (symbol? Op)
+                       (not (or (element? Op [if let and or do cons = + - * < > <= >=])
+                                (element? Op Names)
+                                (shenlogic.validate.constructor-arity? Op (length Args) Constructors))))
+                  [[sl-v021 Op]] [])
+              (shenlogic.validate.expressions-env Args Names Constructors)))))
+
+(define shenlogic.validate.expressions-env
+  [] _ _ -> []
+  [E | Es] Names Constructors ->
+    (append (shenlogic.validate.expr-env E Names Constructors)
+            (shenlogic.validate.expressions-env Es Names Constructors)))
+
+(define shenlogic.validate.constructor-arity?
+  _ _ [] -> false
+  Tag Arity [[constructor Tag _ Arity] | _] -> true
+  Tag Arity [[constructor _ Tag Arity] | _] -> true
+  Tag Arity [_ | Cs] -> (shenlogic.validate.constructor-arity? Tag Arity Cs))
 
 (define shenlogic.validate.definitions
   [] _ Errors -> Errors
