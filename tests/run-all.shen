@@ -110,8 +110,117 @@
                     (certificate-test-success))
           (sl-check "certificate-rejects-bad-conclusion"
                     (certificate-test-rejected))
+          (sl-check "certificate-rejects-unknown-rule"
+                    (certificate-test-unknown-rule))
+          (sl-check "certificate-rejects-missing-rule-premise"
+                    (certificate-test-missing-rule-premise))
+          (sl-check "certificate-rejects-unavailable-premise"
+                    (certificate-test-unavailable-premise))
+          (sl-check "certificate-rejects-malformed-step"
+                    (certificate-test-malformed-step))
+          (sl-check "v2-nested-if-let-negative"
+                    (= (sl-eval "examples/v2-control.shen" "(nested-if-let -2)")
+                       [value 11]))
+          (sl-check "v2-nested-if-let-zero"
+                    (= (sl-eval "examples/v2-control.shen" "(nested-if-let -1)")
+                       [value 99]))
+          (sl-check "v2-nested-if-let-positive"
+                    (= (sl-eval "examples/v2-control.shen" "(nested-if-let 2)")
+                       [value 6]))
+          (sl-check "v2-short-circuit-and-skips-divergence"
+                    (= (sl-eval "examples/v2-control.shen" "(short-circuit-and 0)")
+                       [value false]))
+          (sl-check "v2-short-circuit-or-skips-divergence"
+                    (= (sl-eval "examples/v2-control.shen" "(short-circuit-or 0)")
+                       [value true]))
+          (sl-check "v2-strict-call-order"
+                    (= (sl-eval "examples/v2-control.shen" "(strict-call-order 0)")
+                       [error type-error]))
+          (sl-check "v2-guard-error-blocks-fallback"
+                    (= (sl-eval "tests/fixtures/v2-guard-error.shen" "(guard-error 1)")
+                       [error type-error]))
+          (sl-check "v2-proper-empty-list"
+                    (= (sl-eval "examples/v2-lists.shen" "(list-shape [])")
+                       [value empty]))
+          (sl-check "v2-proper-singleton-list"
+                    (= (sl-eval "examples/v2-lists.shen" "(list-shape [a])")
+                       [value singleton]))
+          (sl-check "v2-proper-nested-list"
+                    (= (sl-eval "examples/v2-lists.shen" "(nested-list-shape [[a b] c])")
+                       [value nested-pair]))
+          (sl-check "v2-improper-list"
+                    (= (sl-eval "examples/v2-lists.shen" "(list-shape [a | tail])")
+                       [value improper]))
+          (sl-check "v2-nested-improper-list"
+                    (= (sl-eval "examples/v2-lists.shen" "(nested-list-shape [[a | tail] c])")
+                       [value nested-improper]))
+          (sl-check "v2-repeated-nested-variable"
+                    (= (sl-eval "examples/v2-lists.shen" "(same-nested [[a a]])")
+                       [value true]))
+          (sl-check "v2-repeated-nested-variable-mismatch"
+                    (= (sl-eval "examples/v2-lists.shen" "(same-nested [[a b]])")
+                       [value false]))
+          (sl-check "v2-constructor-node"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (node 7))")
+                       [value node]))
+          (sl-check "v2-constructor-pair"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (pair 1 2))")
+                       [value pair]))
+          (sl-check "v2-constructor-zero-arity"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag (unit))")
+                       [value unit-constructor]))
+          (sl-check "v2-constructor-symbol-no-confusion"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-tag unit)")
+                       [value unit-symbol]))
+          (sl-check "v2-constructor-overlap-specific"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-overlap (node 0))")
+                       [value zero]))
+          (sl-check "v2-constructor-overlap-fallback"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-overlap (node 2))")
+                       [value node]))
+          (sl-check "v2-constructor-collision"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-collision (same 1))")
+                       [value constructor]))
+          (sl-check "v2-constructor-symbol-collision"
+                    (= (sl-eval "examples/v2-constructors.shen" "(constructor-collision same)")
+                       [value symbol]))
+          (sl-check "v2-constructor-string-collision"
+                    (= (sl-eval "examples/v2-constructors.shen"
+                                "(constructor-collision (constructor-string-probe))")
+                       [value string]))
+          (sl-check "v2-constructor-wrap"
+                    (= (sl-eval "examples/v2-constructors.shen" "(wrap-constructor 4)")
+                       [value [ctor-value box [4]]]))
+          (sl-check "v2-constructor-unwrap"
+                    (= (sl-eval "examples/v2-constructors.shen"
+                                "(unwrap-constructor (box 4))")
+                       [value 4]))
+          (sl-check "v2-mixed-arithmetic-constructor"
+                    (= (sl-eval "examples/v2-constructors.shen" "(mixed-constructor 3)")
+                       [value [ctor-value box [4 [ctor-value pair [3 [ctor-value node [2]]]]]]]))
+          (sl-check "v2-symbol-literal"
+                    (= (sl-eval "examples/v2-literals.shen" "(literal-kind foo)")
+                       [value symbol-foo]))
+          (sl-check "v2-string-literal"
+                    (= (sl-eval "examples/v2-literals.shen" "(literal-string-probe)")
+                       [value string-foo]))
+          (sl-check "v2-mutual-even"
+                    (= (sl-eval "examples/v2-mutual.shen" "(even-v2? 8)")
+                       [value true]))
+          (sl-check "v2-mutual-odd"
+                    (= (sl-eval "examples/v2-mutual.shen" "(odd-v2? 7)")
+                       [value true]))
+          (sl-check "v2-mutual-parity"
+                    (= (sl-eval "examples/v2-mutual.shen" "(parity-v2 8)")
+                       [value even]))
+          (sl-check "v2-reject-guard-user-call"
+                    (sl-rejected? "tests/fixtures/v2-guard-rejection.shen"))
+          (sl-check "v2-reject-partial-primitives"
+                    (sl-rejected? "tests/fixtures/v2-rejections.shen"))
+          (sl-check "v2-reject-separate-definition"
+                    (sl-rejected? "tests/fixtures/v2-separate-definition.shen"))
           (sl-check "version"
-                    (= (shenlogic.version) "0.1.0"))
+                    (= (shenlogic.version) "0.2.0"))
           (sl-check "reject-unverified-fragment"
                     (sl-rejected? "tests/fixtures/rejections.shen"))
           (sl-check "reject-user-call-in-guard"
