@@ -422,8 +422,22 @@ def lowerRule (q : Rule) : Option CHCFormula := do
   let result ← lowerValue q.result
   pure (.atom q.function (args ++ [result]))
 
-def CHCFormula.encodes (q : Rule) (c : CHCFormula) : Prop :=
-  lowerRule q = some c
+def CHCFormula.encodes (q : Rule) : CHCFormula → Prop
+  | .atom n _ => n = q.function
+  | _ => False
+
+theorem lowerRule_atom (q : Rule) (c : CHCFormula) (h : lowerRule q = some c) :
+    ∃ ts, c = .atom q.function ts := by
+  unfold lowerRule at h
+  cases ha : q.args.mapM lowerValue with
+  | none => simp [ha] at h
+  | some args =>
+    cases hr : lowerValue q.result with
+    | none => simp [ha, hr] at h
+    | some result =>
+      simp [ha, hr] at h
+      subst c
+      exact ⟨args ++ [result], rfl⟩
 
 def lowerTHFRule (q : Rule) : Option THFTerm :=
   match q.args, q.result with
@@ -431,16 +445,26 @@ def lowerTHFRule (q : Rule) : Option THFTerm :=
   | _, .int n => some (.constant (toString n))
   | _, _ => none
 
-def THFTerm.encodes (q : Rule) (t : THFTerm) : Prop :=
-  lowerTHFRule q = some t
+def THFTerm.encodes (q : Rule) : THFTerm → Prop
+  | .constant s => (∃ n : Int, q.result = .int n ∧ s = toString n) ∨
+      (∃ x : String, q.result = .symbol x ∧ s = x)
+  | _ => False
 
 theorem lower_rule_preserves (q : Rule) (c : CHCFormula)
     (h : lowerRule q = some c) : CHCFormula.encodes q c := by
-  exact h
+  rcases lowerRule_atom q c h with ⟨ts, rfl⟩
+  rfl
 
 theorem lower_thf_preserves (q : Rule) (t : THFTerm)
     (h : lowerTHFRule q = some t) : THFTerm.encodes q t := by
-  exact h
+  cases hr : q.result with
+  | int n =>
+      cases t <;> simp_all [lowerTHFRule, THFTerm.encodes, hr]
+  | symbol s =>
+      cases t <;> simp_all [lowerTHFRule, THFTerm.encodes, hr]
+  | bool b => cases t <;> simp_all [lowerTHFRule, THFTerm.encodes, hr]
+  | list vs => cases t <;> simp_all [lowerTHFRule, THFTerm.encodes, hr]
+  | ctor n vs => cases t <;> simp_all [lowerTHFRule, THFTerm.encodes, hr]
 
 /- Certificates are checked by replaying a finite list of rule identifiers. -/
 
