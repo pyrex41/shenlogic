@@ -243,6 +243,8 @@
                                       (hd (tl Ps)) (tl V) (tl H))))
                               [match-fail])
   [p-ctor Tag Ps] V E -> (evaluator-match-ctor Tag Ps V E)
+  [p-constructor nil Ps] V E -> (evaluator-match [p-ctor nil Ps] V E)
+  [p-constructor cons Ps] V E -> (evaluator-match [p-ctor cons Ps] V E)
   [p-constructor Tag Ps] V E -> (evaluator-match-ctor Tag Ps V E)
   [p-cons A B] V E -> (if (evaluator-list-value? V)
                           (let H (evaluator-match A (hd V) E)
