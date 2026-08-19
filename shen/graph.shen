@@ -3,14 +3,14 @@
 
 (define graph.render
   [theory [value-signature Constructors] Relations Rules SCCs NameMap] ->
-    (@s "; ShenLogic typed evaluation graph v2~%"
+    (@s "; ShenLogic typed evaluation graph v2" (n->string 10)
           (graph.value-signature Constructors)
           (graph.relations Relations)
           (graph.rules Rules)
           (graph.sccs SCCs)
           (graph.name-map NameMap))
   [theory Declarations Rules SCCs] ->
-    (@s "; ShenLogic typed evaluation graph v1~%"
+    (@s "; ShenLogic typed evaluation graph v1" (n->string 10)
           (graph.declarations Declarations)
           (graph.rules Rules)
           (graph.sccs SCCs))
@@ -22,7 +22,7 @@
 (define graph.value-signature
   Constructors ->
     (@s "(value-signature (constructors "
-          (graph.constructor-list Constructors) "))~%"))
+          (graph.constructor-list Constructors) "))" (n->string 10)))
 
 (define graph.constructor-list
   [] -> ""
@@ -43,17 +43,17 @@
 (define graph.relation
   [relation Name Sorts Result] ->
     (@s "(relation " (graph.atom Name) " ("
-         (graph.term-list Sorts) ") " (graph.term Result) ")~%")
-  R -> (@s (serialize.canonical R) "~%"))
+         (graph.term-list Sorts) ") " (graph.term Result) ")" (n->string 10))
+  R -> (@s (serialize.canonical R) (n->string 10)))
 
 \\ v1 declaration spelling retained for callers of the old graph API.
 (define graph.declarations
   [] -> ""
   [[relation Name Sorts Result] | Ds] ->
     (@s "(relation " (graph.atom Name) " ("
-          (graph.term-list (append Sorts [Result])) "))~%"
+          (graph.term-list (append Sorts [Result])) "))" (n->string 10)
           (graph.declarations Ds))
-  [D | Ds] -> (@s (serialize.canonical D) "~%"
+  [D | Ds] -> (@s (serialize.canonical D) (n->string 10)
                 (graph.declarations Ds)))
 
 (define graph.rules
@@ -64,15 +64,15 @@
   [rule Id Function Clause Path Args Bound Premises Result] ->
     (@s "(rule " (graph.atom Id) " (function " (graph.atom Function)
          ") (clause " (graph.atom Clause) ") (path "
-         (graph.term Path) ")~%  (args (" (graph.term-list Args)
-         "))~%  (bound (" (graph.term-list Bound) "))~%  (when "
-         (graph.premises Premises) ")~%  (derive (" (graph.atom Function)
-         " " (graph.term-list (append Args [Result])) "))~%)~%")
+         (graph.term Path) ")" (n->string 10) "  (args (" (graph.term-list Args)
+         "))" (n->string 10) "  (bound (" (graph.term-list Bound) "))" (n->string 10) "  (when "
+         (graph.premises Premises) ")" (n->string 10) "  (derive (" (graph.atom Function)
+         " " (graph.term-list (append Args [Result])) "))" (n->string 10) ")" (n->string 10))
   [rule Id Function Args Bound Premises Result] ->
     (@s "(rule " (graph.atom Id) " (when " (graph.premises Premises)
          ") (derive (" (graph.atom Function) " "
-         (graph.term-list (append Args [Result])) ")))~%")
-  R -> (@s (serialize.canonical R) "~%"))
+         (graph.term-list (append Args [Result])) "))" (n->string 10))
+  R -> (@s (serialize.canonical R) (n->string 10)))
 
 (define graph.premises
   [] -> "true"
@@ -151,9 +151,9 @@
 (define graph.sccs
   [] -> ""
   [[scc Names] | Ss] ->
-    (@s "(least-scc (" (graph.relation-names Names) "))~%"
+    (@s "(least-scc (" (graph.relation-names Names) "))" (n->string 10)
           (graph.sccs Ss))
-  [S | Ss] -> (@s "(least-scc " (graph.term S) ")~%"
+  [S | Ss] -> (@s "(least-scc " (graph.term S) ")" (n->string 10)
                 (graph.sccs Ss)))
 
 (define graph.relation-names
@@ -162,9 +162,9 @@
   [X | Xs] -> (@s (graph.atom X) " " (graph.relation-names Xs)))
 
 (define graph.name-map
-  [name-map Pairs] -> (@s "(name-map (" (graph.name-pairs Pairs) "))~%")
+  [name-map Pairs] -> (@s "(name-map (" (graph.name-pairs Pairs) "))" (n->string 10))
   none -> ""
-  X -> (@s "(name-map " (graph.term X) ")~%"))
+  X -> (@s "(name-map " (graph.term X) ")" (n->string 10)))
 
 (define graph.name-pairs
   [] -> ""

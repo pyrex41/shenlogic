@@ -46,12 +46,14 @@
 (define serialize-list-tail
   [] -> ""
   [X | Rest] -> (cn " " (cn (serialize-term X)
-                             (serialize-list-tail Rest))))
+                             (serialize-list-tail Rest)))
+  Tail -> (cn " . " (serialize-term Tail)))
 
 (define serialize-lines
   [] -> ""
   [X] -> (serialize-term X)
-  [X | Rest] -> (cn (serialize-term X) (cn "~%" (serialize-lines Rest))))
+  [X | Rest] -> (cn (serialize-term X)
+                    (cn (n->string 10) (serialize-lines Rest))))
 
 (define serialize-canonical
   Terms -> (serialize-lines Terms))
