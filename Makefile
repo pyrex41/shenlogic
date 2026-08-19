@@ -1,7 +1,8 @@
 .PHONY: host test smoke proof bifrost test-all package check certify query \
-	backend-check yggdrasil-stage1 shellcheck
+	backend-check yggdrasil-stage1 shellcheck standalone-source
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
+SHEN_GO_ABS := $(if $(findstring /,$(SHEN_GO)),$(abspath $(SHEN_GO)),$(shell command -v $(SHEN_GO) 2>/dev/null))
 export SHEN_GO
 VERSION ?= 0.2.0
 SOURCE_DATE_EPOCH ?= 0
@@ -73,16 +74,32 @@ package:
 	gzip -n -f "dist/shenlogic-$(VERSION).tar"; \
 	sha256sum "dist/shenlogic-$(VERSION).tar.gz" > dist/SHA256SUMS
 
-yggdrasil-stage1:
+yggdrasil-stage1: build/shenlogic-all.shen
 	@if command -v yggdrasil >/dev/null 2>&1; then \
-		GOFLAGS=-mod=mod yggdrasil shake shenlogic-cli.shen build/yggdrasil-stage1 -host "$(SHEN_GO)" -eval-style sub && \
-		GOFLAGS=-mod=mod yggdrasil build shenlogic-cli.shen build/yggdrasil-go --target go -host "$(SHEN_GO)" -eval-style sub && \
-		test -s build/yggdrasil-stage1/kernel.kl && test -x build/yggdrasil-go/app-go-bin; \
+		GOFLAGS=-mod=mod yggdrasil shake build/shenlogic-all.shen build/yggdrasil-stage1 -host "$(SHEN_GO_ABS)" -eval-style sub && \
+		GOFLAGS=-mod=mod yggdrasil build build/shenlogic-all.shen build/yggdrasil-go --target go -host "$(SHEN_GO_ABS)" -eval-style sub && \
+		test -s build/yggdrasil-stage1/kernel.kl && test -s build/yggdrasil-stage1/shenlogic-all.kl && \
+		test -x build/yggdrasil-go/app-go-bin && \
+		cmp build/yggdrasil-stage1/kernel.kl build/yggdrasil-go/kernel.kl && \
+		build/yggdrasil-go/app-go-bin; \
 	elif [ -x ../yggdrasil/.bin/yggdrasil ]; then \
-		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil shake shenlogic-cli.shen build/yggdrasil-stage1 -host "$(SHEN_GO)" -eval-style sub && \
-		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil build shenlogic-cli.shen build/yggdrasil-go --target go -host "$(SHEN_GO)" -eval-style sub && \
-		test -s build/yggdrasil-stage1/kernel.kl && test -x build/yggdrasil-go/app-go-bin; \
+		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil shake build/shenlogic-all.shen build/yggdrasil-stage1 -host "$(SHEN_GO_ABS)" -eval-style sub && \
+		GOFLAGS=-mod=mod ../yggdrasil/.bin/yggdrasil build build/shenlogic-all.shen build/yggdrasil-go --target go -host "$(SHEN_GO_ABS)" -eval-style sub && \
+		test -s build/yggdrasil-stage1/kernel.kl && test -s build/yggdrasil-stage1/shenlogic-all.kl && \
+		test -x build/yggdrasil-go/app-go-bin && \
+		cmp build/yggdrasil-stage1/kernel.kl build/yggdrasil-go/kernel.kl && \
+		build/yggdrasil-go/app-go-bin; \
 	else echo 'SKIP: yggdrasil binary not found'; fi
+
+standalone-source: build/shenlogic-all.shen
+
+build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
+	@mkdir -p build
+	@awk '!/^\(load / { print }' \
+		shen/ast.shen shen/reader.shen shen/validate.shen shen/decision.shen \
+		shen/rules.shen shen/serialize.shen shen/evaluator.shen \
+		shen/certificate.shen shen/surface.shen shen/graph.shen shen/chc.shen \
+		shen/thf.shen shen/workflow.shen shenlogic.shen shen/cli.shen > $@
 
 shellcheck:
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic; else echo 'SKIP: shellcheck is not installed'; fi

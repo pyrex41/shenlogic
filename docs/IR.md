@@ -1,38 +1,48 @@
 # Canonical intermediate representation
 
-The translator has two internal stages. The source AST preserves Shen forms
-and clause order. The decision tree makes matching, guard evaluation, strict
-calls, and fallback explicit. The logical Rule IR then lowers each terminal
-path into graph rules and groups recursive calls by strongly connected
-component.
+The translator records three representations. The source AST preserves Shen
+forms and clause order. A decision-tree artifact records matching, guards, and
+fallback for review and certification. The Rule compiler independently lowers
+the same normalized AST into terminal graph paths and groups recursive calls
+by strongly connected component. The certificate checker recomputes both
+artifacts, so neither can silently drift from normalized source.
 
-## `.slir` v1
+## `.slir` v2
 
 The serialized form is a tagged S-expression beginning with:
 
 ```text
-(shenlogic-ir 1 (theory DECLARATIONS RULES SCCS))
+(shenlogic-ir 2 (theory VALUE-SIGNATURE RELATIONS RULES SCCS NAME-MAP))
 ```
 
 Every list is ordered. Function, clause, rule, variable, and SCC identifiers
 are derived from source order and traversal counters, never from host hash
 iteration. A serializer round trip must preserve the byte-canonical form.
 
-Declarations have the shape `(relation NAME ARG-SORTS RESULT-SORT)`. Rules
-have the shape `(rule ID FUNCTION ARGS BOUND PREMISES RESULT)`. SCC entries
-have the shape `(scc NAMES)`. Diagnostics retain stable form and clause
-indexes.
+The normalized AST is the trust boundary between source and logic. No backend
+sees raw source syntax after this point. Values are closed and tagged:
+`v-int`, `v-true`, `v-false`, `v-symbol`, `v-string`, and `v-ctor` nodes;
+nil/cons are distinguished constructor tags. This prevents host-language
+equality or string quoting from changing the model.
+
+The frozen v2 theory shape is
+`[theory ValueSignature Relations Rules SCCs NameMap]`. Relations retain the
+shape `(relation NAME ARG-SORTS RESULT-SORT)`. Each rule has nine fields:
+`(rule ID FUNCTION CLAUSE PATH ARGS BOUND PREMISES RESULT)`. SCC entries have
+the shape `(scc NAMES)` and `NameMap` records stable source/backend names.
+Diagnostics retain stable form and clause indexes.
 
 ## Backend discipline
 
 `surface` is a review rendering and is not used as the semantic proof object.
-`graph` is the readable least-graph specification. It retains explicit
-`match` and `not-applicable` premises for constructor patterns and ordered
-fallback. `chc` emits SMT-LIB fixedpoint rules for the integer Horn profile;
-`unknown` is never treated as a proof. `thf` emits TPTP typed higher-order
-formulas and preserves the simultaneous relation quantifiers required by
-mutual recursion for the same supported profile.
+`graph` is the readable least-graph specification. Constructor patterns lower
+to explicit `decompose`/`not-tag` paths, and ordered fallback is represented
+by those paths rather than opaque host matching. `chc` emits SMT-LIB
+fixedpoint rules over the closed Value algebra;
+`unknown` is never treated as a proof. `thf` emits a full-model TPTP typed
+higher-order specification, including simultaneous relation quantifiers and
+leastness obligations required by mutual recursion.
 
 Backends reject unresolved polymorphism, unknown calls, unsupported arithmetic,
-and constructs outside the v1 capability matrix. No backend silently changes
+and constructs outside the v2 capability matrix. No backend silently changes
 the operational meaning of the decision tree.

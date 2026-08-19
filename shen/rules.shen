@@ -284,22 +284,23 @@
   + A B -> [i-add A B]
   - A B -> [i-sub A B]
   * A B -> [i-mul A B])
-(define rules.int
-  [v-int X] -> X
-  [v-var X] -> [i-var X]
-  X -> [i-lit X])
 (define rules.int-expr
   Op A B S Ns ->
-    (map (/. Pair (rules.int-pair Op Pair))
-         (rules.eval-args [A B] S Ns)))
+    (rules.int-pairs Op (rules.eval-args [A B] S Ns)))
+(define rules.int-pairs
+  _ [] -> []
+  Op [Pair | Pairs] ->
+    (append (rules.int-pair Op Pair) (rules.int-pairs Op Pairs)))
 (define rules.int-pair
   Op [S [A B]] ->
     (rules.int-pair-first Op (rules.ensure-int A S) B))
 (define rules.int-pair-first
-  Op [int IA S] B -> (rules.int-pair-second Op IA (rules.ensure-int B S)))
+  Op [int IA S] B -> (rules.int-pair-second Op IA (rules.ensure-int B S))
+  _ not-int _ -> [])
 (define rules.int-pair-second
   Op IA [int IB S] ->
-    (rules.rs-take S [v-int (rules.scalar Op IA IB)]))
+    [(rules.rs-take S [v-int (rules.scalar Op IA IB)])]
+  _ _ not-int -> [])
 (define rules.ensure-int
   [v-int I] S -> [int I S]
   [v-var X] S ->
@@ -307,7 +308,7 @@
          (rules.rs-bound
            (rules.rs-prem S [value-eq [v-var X] [v-int [i-var X]]])
            [i-var X])]
-  X S -> [int (rules.int X) S])
+  _ _ -> not-int)
 (define rules.bool-expr
   Op A B S Ns -> (let Q (rules.bool [Op A B] S Ns)
                   (append (map (/. X (rules.rs-take X v-true)) (hd (tl Q)))
@@ -317,6 +318,16 @@
 (define rules.bool
   true S _ -> [bool [S] []]
   false S _ -> [bool [] [S]]
+  [e-value true] S _ -> [bool [S] []]
+  [e-value false] S _ -> [bool [] [S]]
+  [e-and A B] S Ns -> (rules.bool [and A B] S Ns)
+  [e-or A B] S Ns -> (rules.bool [or A B] S Ns)
+  [e-prim = [A B]] S Ns -> (rules.compare = A B S Ns)
+  [e-prim neq [A B]] S Ns -> (rules.compare neq A B S Ns)
+  [e-prim < [A B]] S Ns -> (rules.compare < A B S Ns)
+  [e-prim > [A B]] S Ns -> (rules.compare > A B S Ns)
+  [e-prim <= [A B]] S Ns -> (rules.compare <= A B S Ns)
+  [e-prim >= [A B]] S Ns -> (rules.compare >= A B S Ns)
   [and A B] S Ns -> (let X (rules.bool A S Ns)
                      (let Y (rules.bool-list B (hd (tl X)) Ns)
                        [bool (hd (tl Y))
@@ -360,10 +371,18 @@
           (rules.rs-prem S (if (= Op =) [value-neq A B]
                               [value-eq A B]))] |
          (rules.compare-pairs Op Ps)]
-        [[(rules.rs-prem S [int-test Op (rules.int A) (rules.int B)])
-          (rules.rs-prem S [int-test (rules.compare-negate Op)
-                            (rules.int A) (rules.int B)])] |
-         (rules.compare-pairs Op Ps)]))
+        (let X (rules.ensure-int A S)
+          (if (= X not-int)
+              (rules.compare-pairs Op Ps)
+              (let Y (rules.ensure-int B (hd (tl (tl X))))
+                (if (= Y not-int)
+                    (rules.compare-pairs Op Ps)
+                    [[(rules.rs-prem (hd (tl (tl Y)))
+                                      [int-test Op (hd (tl X)) (hd (tl Y))])
+                      (rules.rs-prem (hd (tl (tl Y)))
+                                      [int-test (rules.compare-negate Op)
+                                                (hd (tl X)) (hd (tl Y))])] |
+                     (rules.compare-pairs Op Ps)]))))))
 (define rules.compare-negate
   < -> >=
   > -> <=
@@ -428,7 +447,7 @@
   Name [[clause I Ps G B] | Cs] Args S Ns ->
     (let M (rules.match-patterns Ps (rules.arg-terms Args) S)
       (let Good (rules.guard G (hd (hd (tl M))) Ns)
-        (append (rules.leaves I (rules.expr B (hd (tl Good)) Ns))
+        (append (rules.leaves I (rules.expr-frontier B (hd (tl Good)) Ns))
                 (rules.clause-fallback Name Cs Args
                   (append (hd (tl (tl M))) (hd (tl (tl Good)))) Ns)))))
 (define rules.arg-terms
@@ -440,8 +459,8 @@
     (append (rules.clause-chain Name Cs Args S Ns)
             (rules.clause-fallback Name Cs Args Ss Ns)))
 (define rules.guard
-  none S _ -> [guard S []]
-  true S _ -> [guard S []]
+  none S _ -> [guard [S] []]
+  true S _ -> [guard [S] []]
   [some G] S Ns -> (rules.guard-expr G S Ns)
   G S Ns -> (rules.guard-expr G S Ns))
 (define rules.guard-expr

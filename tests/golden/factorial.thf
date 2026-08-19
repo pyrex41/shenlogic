@@ -1,5 +1,39 @@
-% ShenLogic typed higher-order specification
-thf(sl_factorial_type,type,($int > $int > $o)).
-thf(rule_sl_factorial_0,axiom,(! [V_factorial_a0:$int] : (((V_factorial_a0 = 0) => (sl_factorial @ V_factorial_a0 @ 1))))).
-thf(rule_sl_factorial_1,axiom,(! [V_factorial_a0:$int,V_R0:$int] : ((((V_factorial_a0 != 0) & (sl_factorial @ $difference(V_factorial_a0,1) @ V_R0)) => (sl_factorial @ V_factorial_a0 @ $product(V_factorial_a0,V_R0)))))).
-thf(least_sl_factorial,axiom,(! [R_sl_factorial:($int > $int > $o)] : (((! [V_factorial_a0:$int] : (((V_factorial_a0 = 0) => (R_sl_factorial @ V_factorial_a0 @ 1))) & ! [V_factorial_a0:$int,V_R0:$int] : ((((V_factorial_a0 != 0) & (R_sl_factorial @ $difference(V_factorial_a0,1) @ V_R0)) => (R_sl_factorial @ V_factorial_a0 @ $product(V_factorial_a0,V_R0))))) => ! [V_A0:$int,V_Result:$int] : ((sl_factorial @ V_A0 @ V_Result) => (R_sl_factorial @ V_A0 @ V_Result)))))).
+% ShenLogic typed value specification
+thf(sl_value_type,type,value: $tType).
+thf(sl_ctor_int_type,type,sl_ctor_int: ($int > value)).
+thf(sl_ctor_true_type,type,sl_ctor_true: (value)).
+thf(sl_ctor_false_type,type,sl_ctor_false: (value)).
+thf(sl_ctor_symbol_type,type,sl_ctor_symbol: ($i > value)).
+thf(sl_ctor_string_type,type,sl_ctor_string: ($i > value)).
+thf(sl_ctor_nil_type,type,sl_ctor_nil: (value)).
+thf(sl_ctor_cons_type,type,sl_ctor_cons: (value > value > value)).
+thf(sl_rel_factorial_type,type,sl_rel_factorial: (value > value > $o)).
+thf(sl_ctor_int_injective,axiom,(! [V_X0:$int,V_Y0:$int] : (((sl_ctor_int @ V_X0) = (sl_ctor_int @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_symbol_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) = (sl_ctor_symbol @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_string_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_string @ V_X0) = (sl_ctor_string @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_cons_injective,axiom,(! [V_X0:value,V_X1:value,V_Y0:value,V_Y1:value] : (((sl_ctor_cons @ V_X0 @ V_X1) = (sl_ctor_cons @ V_Y0 @ V_Y1)) => ((V_X0 = V_Y0) & (V_X1 = V_Y1))))).
+thf(sl_ctor_int_true_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_true)))).
+thf(sl_ctor_int_false_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_false)))).
+thf(sl_ctor_int_symbol_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_int_string_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_int_nil_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_int_cons_disjoint,axiom,(! [V_X0:$int,V_Y1:value,V_Y0:value] : (((sl_ctor_int @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_true_false_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_false)))).
+thf(sl_ctor_true_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_true_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_true_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_nil)))).
+thf(sl_ctor_true_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_true != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_false_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_false_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_false_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_false != sl_ctor_nil)))).
+thf(sl_ctor_false_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_false != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_symbol_string_disjoint,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_symbol_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_symbol @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_symbol_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_string_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_string @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_string_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_string @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_nil_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_nil != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_value_induction,axiom,(! [P:(value > $o)] : ((((! [V_A0:$int] : (P @ (sl_ctor_int @ V_A0))) & ((P @ sl_ctor_true) & ((P @ sl_ctor_false) & ((! [V_A0:$i] : (P @ (sl_ctor_symbol @ V_A0))) & ((! [V_A0:$i] : (P @ (sl_ctor_string @ V_A0))) & ((P @ sl_ctor_nil) & ((! [V_A0:value,V_A1:value] : (((P @ V_A0) & (P @ V_A1)) => (P @ (sl_ctor_cons @ V_A0 @ V_A1)))) & $true)))))))) => (! [X:value] : (P @ X))))).
+thf(sl_rule_factorial_underc0_underp0,axiom,(! [V_factorial_undera0:value] : (((V_factorial_undera0 = (sl_ctor_int @ 0)) => (sl_rel_factorial @ V_factorial_undera0 @ (sl_ctor_int @ 1)))))).
+thf(sl_rule_factorial_underc1_underp1,axiom,(! [V_factorial_undera0:value,I_factorial_undera0:$int,V_R0:value,I_R0:$int] : ((((V_factorial_undera0 != (sl_ctor_int @ 0)) & ((V_factorial_undera0 = (sl_ctor_int @ I_factorial_undera0)) & ((sl_rel_factorial @ (sl_ctor_int @ $difference(I_factorial_undera0,1)) @ V_R0) & ((V_factorial_undera0 = (sl_ctor_int @ I_factorial_undera0)) & (V_R0 = (sl_ctor_int @ I_R0)))))) => (sl_rel_factorial @ V_factorial_undera0 @ (sl_ctor_int @ $product(I_factorial_undera0,I_R0))))))).
+thf(sl_least_factorial,axiom,(! [R_factorial:(value > value > $o)] : ((((! [V_factorial_undera0:value] : (((V_factorial_undera0 = (sl_ctor_int @ 0)) => (R_factorial @ V_factorial_undera0 @ (sl_ctor_int @ 1))))) & (! [V_factorial_undera0:value,I_factorial_undera0:$int,V_R0:value,I_R0:$int] : ((((V_factorial_undera0 != (sl_ctor_int @ 0)) & ((V_factorial_undera0 = (sl_ctor_int @ I_factorial_undera0)) & ((R_factorial @ (sl_ctor_int @ $difference(I_factorial_undera0,1)) @ V_R0) & ((V_factorial_undera0 = (sl_ctor_int @ I_factorial_undera0)) & (V_R0 = (sl_ctor_int @ I_R0)))))) => (R_factorial @ V_factorial_undera0 @ (sl_ctor_int @ $product(I_factorial_undera0,I_R0))))))) => (! [V_A0:value,V_Result:value] : (((sl_rel_factorial @ V_A0 @ V_Result) => (R_factorial @ V_A0 @ V_Result)))))))).

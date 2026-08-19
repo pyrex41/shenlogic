@@ -11,9 +11,10 @@
 (load "shen/graph.shen")
 (load "shen/chc.shen")
 (load "shen/thf.shen")
+(load "shen/workflow.shen")
 
 (define shenlogic.version
-  -> "0.1.0")
+  -> "0.2.0")
 
 \\ Stable orchestration API used by the command line and external callers.
 (define shenlogic.unwrap
@@ -23,23 +24,29 @@
   [errors Es] -> (error (serialize.canonical Es))
   X -> X)
 
-(define shenlogic.program
+(define shenlogic.source-program
   File -> (let Parsed (shenlogic.unwrap (shenlogic.reader.read-program File))
-                Checked (shenlogic.unwrap (shenlogic.validate.program Parsed))
-                Checked))
+                (shenlogic.unwrap (shenlogic.validate.program Parsed))))
+
+(define shenlogic.program
+  File -> (shenlogic.ast.normalize-program (shenlogic.source-program File)))
 
 (define shenlogic.translate-file
-  File Format -> (let Source (shenlogic.program File)
-                      Program (shenlogic.unwrap (shenlogic.validate.logic Source))
-                      Theory (rules.compile Program)
-                      (shenlogic.translate-theory Format Program Theory)))
+  File Format ->
+    (let Source (shenlogic.source-program File)
+      (if (= Format "surface")
+          (surface.translate Source)
+          (let Program (shenlogic.ast.normalize-program Source)
+            (let Checked (shenlogic.unwrap (shenlogic.validate.logic Program))
+              (let Theory (rules.compile Checked)
+                (shenlogic.translate-theory Format Checked Theory)))))))
 
 (define shenlogic.translate-theory
   "surface" Program _ -> (surface.translate Program)
   "graph" _ Theory -> (graph.render Theory)
-  "slir" _ Theory -> (serialize.canonical [shenlogic-ir 1 Theory])
+  "slir" _ Theory -> (serialize.canonical [shenlogic-ir 2 Theory])
   "chc" _ Theory -> (shenlogic.unwrap (shenlogic.chc.render Theory nonlinear))
-  "thf" _ Theory -> (shenlogic.unwrap (shenlogic.thf.render Theory standard))
+  "thf" _ Theory -> (shenlogic.unwrap (shenlogic.thf.render Theory full-model))
   Format _ _ -> (error (cn "unsupported format: " Format)))
 
 (define shenlogic.check-file

@@ -17,8 +17,9 @@ files are compared byte-for-byte. A host that is unavailable is reported as
 skipped in ordinary development runs and is required for the release matrix.
 
 The first suite covers factorial, overlapping and repeated-variable patterns,
-Fibonacci, mutual recursion, and guard rejection. `bifrost.suite.json` is the
-source of truth for command arguments and expected markers.
+Fibonacci, mutual recursion, guard rejection, and v2 Value/constructor cases.
+`bifrost.suite.json` is the source of truth for command arguments and expected
+markers. The suite also checks the byte-canonical SLIR v2 marker.
 
 ## Host policy
 
@@ -26,5 +27,7 @@ Per-change checks require shen-go. Nightly checks add shen-cl and any pinned
 shen-rust, shen-lua, or ShenScript hosts present in the runner. Host revisions
 are recorded in `toolchain.lock`; no floating checkout is a release input.
 
-Yggdrasil/Ratatoskr runs only after Bifrost parity. Its role is to package the
-translator and compare shaken artifacts, not to define source semantics.
+Yggdrasil/Ratatoskr runs only after Bifrost parity in the release/nightly
+workflow. Its role is to package the translator and compare shaken artifacts,
+not to define source semantics; its Go stage is isolated with
+`GOFLAGS=-mod=mod`.

@@ -12,7 +12,7 @@
   [] _ Default -> Default
   [Found Value | Rest] Key Default -> (if (= (shenlogic.cli-name Found)
                                                (shenlogic.cli-name Key)) Value
-                                       (shenlogic.cli-value Rest Key Default))
+                                       (shenlogic.cli-value [Value | Rest] Key Default))
   [Found | Rest] Key Default -> (shenlogic.cli-value Rest Key Default))
 
 (define shenlogic.cli-has
@@ -86,7 +86,7 @@
     (let Backend (shenlogic.cli-value Rest "--backend" "chc")
       (let Result (shenlogic.query-file File Expr Expected Backend)
         (if (= (hd Result) ok)
-            (output "~S~%" Result)
+            (output "~A" (hd (tl (tl Result))))
             (error (serialize.canonical Result)))))
   _ -> (error "shenlogic query: expected FILE EXPR EXPECTED --backend chc|thf"))
 

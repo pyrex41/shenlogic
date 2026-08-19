@@ -48,8 +48,14 @@ jobs:
         run: |
           set -eu
           sudo apt-get update
-          sudo apt-get install -y z3
-          z3 --version
+          sudo apt-get install -y unzip
+          Z3_URL=https://github.com/Z3Prover/z3/releases/download/z3-4.15.3/z3-4.15.3-x64-glibc-2.39.zip
+          Z3_SHA256=94549c5e31a75b9c543fe6eea8f32927054765c2e92e696d2d6dde0eedf348a1
+          curl --proto '=https' --tlsv1.2 -fsSL "$Z3_URL" -o /tmp/z3.zip
+          echo "$Z3_SHA256  /tmp/z3.zip" | sha256sum --check
+          unzip -q /tmp/z3.zip -d /tmp/z3
+          Z3=/tmp/z3/z3-4.15.3-x64-glibc-2.39/bin/z3
+          test "$($Z3 --version)" = "Z3 version 4.15.3 - 64 bit"
           TPTP4X_REV=781de44267f9561be28dbef89dbada54129641bf
           JJPARSER_REV=14611475bb2e0e946609889167dcc5db9f93eb17
           TPTP4X_ROOT=/tmp/tptp4x
@@ -63,7 +69,11 @@ jobs:
           mkdir -p build/backends
           ./bin/shenlogic translate examples/factorial.shen --format chc -o build/backends/factorial.chc
           ./bin/shenlogic translate examples/factorial.shen --format thf -o build/backends/factorial.thf
-          z3 -smt2 build/backends/factorial.chc
+          ./bin/shenlogic query examples/factorial.shen '(factorial 5)' 120 --backend chc > build/backends/factorial-120.chc
+          ./bin/shenlogic query examples/factorial.shen '(factorial 5)' 121 --backend chc > build/backends/factorial-121.chc
+          "$Z3" -smt2 build/backends/factorial.chc
+          test "$("$Z3" -smt2 build/backends/factorial-120.chc)" = sat
+          test "$("$Z3" -smt2 build/backends/factorial-121.chc)" = unsat
           "$TPTP4X" -q1 -u machine build/backends/factorial.thf
 
       - name: Run cross-host suite

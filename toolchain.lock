@@ -9,6 +9,7 @@ yggdrasil-repository https://github.com/pyrex41/yggdrasil.git
 yggdrasil-revision f3f7f9bdb72680719544f1cba7b1298608e20112
 lean-version 4.19
 z3-version 4.15.3
+z3-linux-x64-sha256 94549c5e31a75b9c543fe6eea8f32927054765c2e92e696d2d6dde0eedf348a1
 tptp4x-version git
 tptp4x-repository https://github.com/TPTPWorld/TPTP4X.git
 tptp4x-revision 781de44267f9561be28dbef89dbada54129641bf

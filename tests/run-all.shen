@@ -43,6 +43,16 @@
   _ [] -> false
   Tag [X | Xs] -> (or (sl-has-tag? Tag X) (sl-has-tag-list? Tag Xs)))
 
+(define sl-has-form?
+  Form X -> (if (= Form X)
+                true
+                (if (cons? X) (sl-has-form-list? Form X) false)))
+
+(define sl-has-form-list?
+  _ [] -> false
+  Form [X | Xs] ->
+    (or (sl-has-form? Form X) (sl-has-form-list? Form Xs)))
+
 (define sl-run
   -> (let Results
          [(sl-check "factorial-surface"
@@ -78,6 +88,12 @@
           (sl-check "guard-negative-clause"
                     (= (sl-eval "examples/guards.shen" "(sign -2)")
                        [value negative]))
+          (sl-check "total-guard-graph-supported"
+                    (sl-translation-succeeds? "examples/guards.shen" "graph"))
+          (sl-check "total-guard-chc-supported"
+                    (sl-translation-succeeds? "examples/guards.shen" "chc"))
+          (sl-check "total-guard-thf-supported"
+                    (sl-translation-succeeds? "examples/guards.shen" "thf"))
           (sl-check "factorial-eval-5"
                     (= (sl-eval "examples/factorial.shen" "(factorial 5)")
                        [value 120]))
@@ -128,6 +144,19 @@
                     (sl-translation-succeeds? "examples/v2-constructors.shen" "chc"))
           (sl-check "control-graph-supported"
                     (sl-translation-succeeds? "examples/v2-control.shen" "graph"))
+          (sl-check "control-type-errors-have-no-arithmetic-rule"
+                    (not (sl-has-form? [i-lit v-true]
+                           (rules.compile
+                             (shenlogic.program "examples/v2-control.shen")))))
+          (sl-check "control-thf-supported"
+                    (sl-translation-succeeds? "examples/v2-control.shen" "thf"))
+          (sl-check "canonical-string-roundtrip"
+                    (let S (cn "a"
+                               (cn (n->string 34)
+                                   (cn (n->string 92)
+                                       (cn (n->string 10) "b"))))
+                      (= S (hd (read-from-string-unprocessed
+                                 (serialize.canonical S))))))
           (sl-check "separate-declare-eval"
                     (= (sl-eval "tests/fixtures/declared.shen" "(declared-id 7)")
                        [value 7]))

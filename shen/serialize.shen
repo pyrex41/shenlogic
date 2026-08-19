@@ -8,15 +8,15 @@
 (define serialize.escape-char
   C -> (let N (string->n C)
          (if (= N 34)
-             (cn (n->string 92) (n->string 34))
-             (if (= N 92)
-                 (cn (n->string 92) (n->string 92))
-                 (if (= N 10)
-                     (cn (n->string 92) "n")
-                     (if (= N 13)
-                         (cn (n->string 92) "r")
-                         (if (= N 9)
-                             (cn (n->string 92) "t") C)))))))
+             (serialize.control 34)
+             (if (= N 10)
+                 (serialize.control 10)
+                 (if (= N 13)
+                     (serialize.control 13)
+                     (if (= N 9) (serialize.control 9) C))))))
+
+(define serialize.control
+  N -> (@s "c#" (str N) ";"))
 
 (define serialize.escape-chars
   [] -> ""

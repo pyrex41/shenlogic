@@ -1,4 +1,12 @@
-# ShenLogic 0.1 semantic contract
+# ShenLogic 0.2 semantic contract
+
+## Normalization and values
+
+Source is read as data and normalized into a tagged AST before validation. This
+is the trust boundary: no source form is evaluated while it is being lowered.
+All values inhabit one closed `Value` ADT: exact integers, booleans, symbols,
+strings, nil/cons lists, and declared free constructors. Equality and quoting
+are defined on those tags, never delegated to host-language representation.
 
 ## Evaluation
 
@@ -25,12 +33,12 @@ the same rules; this is the least closed relation and excludes junk results.
 
 ## Supported fragment and model
 
-The v1 evaluator has exact integers, booleans, symbols, strings, and free
-constructors. The logical Rule IR currently excludes `if`, `let`, `and`, `or`,
-and `do` until control-flow paths are lowered independently. It retains free
-constructor matching as explicit premises. The CHC and THF emitters are
-stricter still: their current profile is integer Horn logic, and they reject
-constructor matches or complex applicability tests.
+The v2 evaluator has exact integers, booleans, symbols, strings, and free
+constructors. The Rule IR retains control-flow paths and lowers
+free-constructor matching to explicit `decompose`/`not-tag` premises. CHC
+lowers the closed Value ADT to SMT-LIB datatypes. THF emits typed higher-order
+axioms for the intended full model, including simultaneous SCC leastness;
+neither backend silently treats an unknown solver result as a proof.
 
 All modes exclude floating point, division, partial primitives, effects,
 mutable state, I/O, exceptions, dynamic loading, Prolog/backtracking,
