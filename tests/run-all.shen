@@ -128,6 +128,14 @@
                     (certificate-test-bundle-success))
           (sl-check "certificate-v2-rejects-malformed-rule"
                     (certificate-test-bundle-rejects-rule-shape))
+          (sl-check "certificate-v2-rejects-stale-value-signature"
+                    (certificate-test-bundle-rejects-stale-vs))
+          (sl-check "certificate-v2-rejects-edited-chc"
+                    (certificate-test-bundle-rejects-artifact-edit))
+          (sl-check "certificate-v2-rejects-missing-lowering"
+                    (certificate-test-bundle-rejects-missing-lowering))
+          (sl-check "certificate-v2-rejects-raw-source"
+                    (certificate-test-bundle-rejects-raw-source))
           (sl-check "v2-nested-if-let-negative"
                     (= (sl-eval "examples/v2-control.shen" "(nested-if-let -2)")
                        [value 11]))
