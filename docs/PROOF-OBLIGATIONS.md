@@ -30,6 +30,13 @@ and `G_f` the generated graph relation.
 7. **Functionality and definedness.** Deterministic source evaluation implies
    `G_f(args,v₁) ∧ G_f(args,v₂) => v₁ = v₂` and
    `Defined_f(args) <=> exists v. G_f(args,v)`.
+8. **Defunctionalization adequacy.** In the least model,
+   `sl.apply-N(s, x̄, r) <=> exists f. s = 'f ∧ f$(x̄, r)` over the
+   program's arity-N functions; the SCC over-approximation introduced by
+   `sl.apply-N` edges preserves the least fixed point.
+9. **tsl correspondence.** Under `defined-f(ā) <=> exists v. f$(ā,v)`
+   (and `defined-apply-N(F,x̄) <=> exists r. sl.apply-N(F,x̄,r)`), every
+   tsl equation and definedness axiom holds in the least graph model.
 
 Proof development proceeds in that order: patterns, nonrecursive expressions,
 ordered clauses, direct recursion, then mutual recursion and leastness. Errors

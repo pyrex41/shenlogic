@@ -1,0 +1,7 @@
+(all X ((double X) = (* 2 X)))
+(all X ((positive? X) = (> X 0)))
+(all F ((map F ()) = ()))
+(all F (all Y (all X ((~ ([X | Y] = ())) => ((map F [X | Y]) = [(F X) | (map F Y)])))))
+(all F ((filter F ()) = ()))
+(all F (all Y (all X ((~ ([X | Y] = ())) => ((filter F [X | Y]) = (if (F X) [X | (filter F Y)] (filter F Y)))))))
+(all F (all X ((twice F X) = (F (F X)))))

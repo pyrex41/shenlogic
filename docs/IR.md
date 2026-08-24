@@ -51,3 +51,10 @@ bundle.
 Backends reject unresolved polymorphism, unknown calls, unsupported arithmetic,
 and constructs outside the v2 capability matrix. No backend silently changes
 the operational meaning of the decision tree.
+
+Programs with function parameters additively extend the theory within the
+frozen v2 grammar: normalized bodies may contain `[e-apply Var Args]`
+nodes, and the compiled theory then contains `sl.apply-N` relations and
+`sl.apply-N_f` rules (one per defined arity-N function). Definition names
+beginning with `sl.apply-` are reserved. No `shenlogic-ir` version bump is
+involved, and programs without applications compile byte-identically.

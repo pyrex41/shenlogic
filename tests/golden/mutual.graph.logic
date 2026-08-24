@@ -26,6 +26,5 @@
   (when (and (value-neq (v-var odd?_a0) (v-int (i-lit 0))) (value-eq (v-var odd?_a0) (v-int (i-var odd?_a0))) (call even? ((v-int (i-sub (i-var odd?_a0) (i-lit 1)))) (v-var R0))))
   (derive (odd? (v-var odd?_a0) (v-var R0)))
 )
-(least-scc (even?))
-(least-scc (odd?))
+(least-scc (odd? even?))
 (name-map ((even? even?) (odd? odd?)))

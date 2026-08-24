@@ -93,6 +93,7 @@
   [e-value X] -> (certificate-atom? X)
   [e-ctor Tag Args] -> (and (symbol? Tag) (certificate-exprs? Args))
   [e-call Name Args] -> (and (symbol? Name) (certificate-exprs? Args))
+  [e-apply Head Args] -> (and (variable? Head) (certificate-exprs? Args))
   [e-if C T F] -> (and (certificate-expr-schema? C)
                        (certificate-expr-schema? T)
                        (certificate-expr-schema? F))
@@ -230,6 +231,8 @@
   [e-value _] -> true
   [e-ctor _ Args] -> (certificate-supported-exprs? Args)
   [e-call _ Args] -> (certificate-supported-exprs? Args)
+  [e-apply Head Args] -> (and (variable? Head)
+                              (certificate-supported-exprs? Args))
   [e-if C T F] -> (and (certificate-supported-expr? C)
                        (certificate-supported-expr? T)
                        (certificate-supported-expr? F))

@@ -62,7 +62,7 @@
   P [e-value X] E N -> [value X]
   P [e-lit X] E N -> [value X]
   P [e-call Name Args] E N -> (evaluator-call P Name Args E N [])
-  P [e-apply Name Args] E N -> (evaluator-call P Name Args E N [])
+  P [e-apply Head Args] E N -> (evaluator-apply P Head Args E N)
   P [e-ctor Tag Args] E N -> (let R (evaluator-args P Args E N)
                                (if (evaluator-ok R)
                                    (evaluator-construct-value Tag
@@ -118,12 +118,24 @@
   P [> A B] E N -> (sl-bin > P A B E N)
   P [<= A B] E N -> (sl-bin <= P A B E N)
   P [>= A B] E N -> (sl-bin >= P A B E N)
-  P [apply Name | Args] E N -> (evaluator-call P Name Args E N [])
+  P [apply Head | Args] E N -> (evaluator-apply P Head Args E N)
   P [Name | Args] E N -> (evaluator-call P Name Args E N [])
 
   P X E N -> (let R (evaluator-lookup X E)
               (if (evaluator-ok R) R [value X]))
 )
+
+\\ A function value is its name: resolve the head to a symbol in the
+\\ environment, then dispatch by that name.  Non-symbol heads are apply
+\\ errors, matching the closed defunctionalized theory.
+(define evaluator-apply
+  P Head Args E N ->
+    (let R (evaluator-expr P (if (variable? Head) [e-var Head] Head) E N)
+      (if (evaluator-ok R)
+          (if (symbol? (evaluator-val R))
+              (evaluator-call P (evaluator-val R) Args E N [])
+              [error apply-non-function])
+          R)))
 
 (define evaluator-if
   P C T F E N -> (let R (evaluator-expr P C E N)

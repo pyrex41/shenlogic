@@ -65,6 +65,24 @@
 (define certificate-test-bundle-success
   -> (= (certificate-check (certificate-test-bundle)) [ok]))
 
+\\ Same in-memory bundle construction from a source file; exercises the
+\\ generated sl.apply rules when the file uses function parameters.
+(define certificate-test-file-bundle
+  File -> (let P (shenlogic.program File)
+            (let T (rules.compile P)
+              (let C (shenlogic.unwrap (shenlogic.chc.render T nonlinear))
+                (let H (shenlogic.unwrap (shenlogic.thf.render T full-model))
+                  (let VS (certificate-theory-value-signature T)
+                    (let NM (certificate-theory-name-map T)
+                      (let D (decision.compile P)
+                        (let Steps (shenlogic.workflow.lowering-steps
+                                      (shenlogic.workflow.theory-rules T))
+                          [shenlogic-certificate 1 P VS D T [chc C] [thf H]
+                           Steps NM])))))))))
+
+(define certificate-test-file-success
+  File -> (= (certificate-check (certificate-test-file-bundle File)) [ok]))
+
 (define certificate-test-bundle-rejects-rule-shape
   -> (= (certificate-check
           (certificate-test-bundle-bad-theory (certificate-test-v2-bundle)))

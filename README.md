@@ -87,14 +87,18 @@ Version 0.2 supports:
   patterns;
 - proper and improper lists;
 - strict first-order calls;
+- function parameters: arrow-typed arguments that are applied fully
+  saturated or passed on, with defined function names as arguments
+  (modeled by name via generated `sl.apply-N` relations);
 - `if`, `let`, short-circuit `and`, and short-circuit `or`;
 - exact integer arithmetic and comparisons;
 - direct and mutual recursion.
 
 It rejects unsupported behavior instead of approximating it. Rejected features
-include floating point, division and other partial primitives, higher-order
-values, lambdas, effects, I/O, mutable state, exceptions, dynamic loading,
-Prolog/backtracking, and user-function calls in guards.
+include floating point, division and other partial primitives, lambdas,
+partial application, function-valued results, effects, I/O, mutable state,
+exceptions, dynamic loading, Prolog/backtracking, and user-function calls
+in guards.
 
 See [docs/SEMANTICS.md](docs/SEMANTICS.md) for the precise contract and
 [docs/IR.md](docs/IR.md) for the SLIR v2 format.

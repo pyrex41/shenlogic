@@ -1,0 +1,61 @@
+% ShenLogic typed value specification
+thf(sl_value_type,type,value: $tType).
+thf(sl_ctor_int_type,type,sl_ctor_int: ($int > value)).
+thf(sl_ctor_true_type,type,sl_ctor_true: (value)).
+thf(sl_ctor_false_type,type,sl_ctor_false: (value)).
+thf(sl_ctor_symbol_type,type,sl_ctor_symbol: ($i > value)).
+thf(sl_ctor_string_type,type,sl_ctor_string: ($i > value)).
+thf(sl_ctor_nil_type,type,sl_ctor_nil: (value)).
+thf(sl_ctor_cons_type,type,sl_ctor_cons: (value > value > value)).
+thf(sl_rel_double_type,type,sl_rel_double: (value > value > $o)).
+thf(sl_rel_positive_q_type,type,sl_rel_positive_q: (value > value > $o)).
+thf(sl_rel_map_type,type,sl_rel_map: (value > value > value > $o)).
+thf(sl_rel_filter_type,type,sl_rel_filter: (value > value > value > $o)).
+thf(sl_rel_twice_type,type,sl_rel_twice: (value > value > value > $o)).
+thf(sl_rel_sl_apply_1_type,type,sl_rel_sl_apply_1: (value > value > value > $o)).
+thf(sl_sym_double_type,type,sl_sym_double: $i).
+thf(sl_sym_positive_q_type,type,sl_sym_positive_q: $i).
+thf(sl_literal_symbol_double_neq_positive_q,axiom,(sl_sym_double != sl_sym_positive_q)).
+thf(sl_ctor_int_injective,axiom,(! [V_X0:$int,V_Y0:$int] : (((sl_ctor_int @ V_X0) = (sl_ctor_int @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_symbol_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) = (sl_ctor_symbol @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_string_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_string @ V_X0) = (sl_ctor_string @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_cons_injective,axiom,(! [V_X0:value,V_X1:value,V_Y0:value,V_Y1:value] : (((sl_ctor_cons @ V_X0 @ V_X1) = (sl_ctor_cons @ V_Y0 @ V_Y1)) => ((V_X0 = V_Y0) & (V_X1 = V_Y1))))).
+thf(sl_ctor_int_true_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_true)))).
+thf(sl_ctor_int_false_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_false)))).
+thf(sl_ctor_int_symbol_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_int_string_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_int_nil_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_int_cons_disjoint,axiom,(! [V_X0:$int,V_Y1:value,V_Y0:value] : (((sl_ctor_int @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_true_false_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_false)))).
+thf(sl_ctor_true_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_true_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_true_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_nil)))).
+thf(sl_ctor_true_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_true != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_false_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_false_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_false_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_false != sl_ctor_nil)))).
+thf(sl_ctor_false_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_false != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_symbol_string_disjoint,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_symbol_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_symbol @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_symbol_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_string_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_string @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_string_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_string @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_nil_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_nil != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_value_induction,axiom,(! [P:(value > $o)] : ((((! [V_A0:$int] : (P @ (sl_ctor_int @ V_A0))) & ((P @ sl_ctor_true) & ((P @ sl_ctor_false) & ((! [V_A0:$i] : (P @ (sl_ctor_symbol @ V_A0))) & ((! [V_A0:$i] : (P @ (sl_ctor_string @ V_A0))) & ((P @ sl_ctor_nil) & ((! [V_A0:value,V_A1:value] : (((P @ V_A0) & (P @ V_A1)) => (P @ (sl_ctor_cons @ V_A0 @ V_A1)))) & $true)))))))) => (! [X:value] : (P @ X))))).
+thf(sl_rule_double_underc0_underp0,axiom,(! [V_double_undera0:value,I_double_undera0:$int] : (((V_double_undera0 = (sl_ctor_int @ I_double_undera0)) => (sl_rel_double @ V_double_undera0 @ (sl_ctor_int @ $product(2,I_double_undera0))))))).
+thf(sl_rule_positive_q_underc0_underp0,axiom,(! [V_positive_q_undera0:value,I_positive_q_undera0:$int] : ((((V_positive_q_undera0 = (sl_ctor_int @ I_positive_q_undera0)) & $greater(I_positive_q_undera0,0)) => (sl_rel_positive_q @ V_positive_q_undera0 @ sl_ctor_true))))).
+thf(sl_rule_positive_q_underc0_underp1,axiom,(! [V_positive_q_undera0:value,I_positive_q_undera0:$int] : ((((V_positive_q_undera0 = (sl_ctor_int @ I_positive_q_undera0)) & $lesseq(I_positive_q_undera0,0)) => (sl_rel_positive_q @ V_positive_q_undera0 @ sl_ctor_false))))).
+thf(sl_rule_map_underc0_underp0,axiom,(! [V_map_undera0:value,V_map_undera1:value] : (((V_map_undera1 = sl_ctor_nil) => (sl_rel_map @ V_map_undera0 @ V_map_undera1 @ sl_ctor_nil))))).
+thf(sl_rule_map_underc1_underp1,axiom,(! [V_map_undera0:value,V_map_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_map_undera1 = sl_ctor_nil))) & ((V_map_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_map_undera0 @ V_M1 @ V_R0) & (sl_rel_map @ V_map_undera0 @ V_M0 @ V_R1)))) => (sl_rel_map @ V_map_undera0 @ V_map_undera1 @ (sl_ctor_cons @ V_R0 @ V_R1)))))).
+thf(sl_rule_filter_underc0_underp0,axiom,(! [V_filter_undera0:value,V_filter_undera1:value] : (((V_filter_undera1 = sl_ctor_nil) => (sl_rel_filter @ V_filter_undera0 @ V_filter_undera1 @ sl_ctor_nil))))).
+thf(sl_rule_filter_underc1_underp1,axiom,(! [V_filter_undera0:value,V_filter_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_filter_undera1 = sl_ctor_nil))) & ((V_filter_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_filter_undera0 @ V_M1 @ V_R0) & ((V_R0 = sl_ctor_true) & (sl_rel_filter @ V_filter_undera0 @ V_M0 @ V_R1))))) => (sl_rel_filter @ V_filter_undera0 @ V_filter_undera1 @ (sl_ctor_cons @ V_M1 @ V_R1)))))).
+thf(sl_rule_filter_underc1_underp2,axiom,(! [V_filter_undera0:value,V_filter_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_filter_undera1 = sl_ctor_nil))) & ((V_filter_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_filter_undera0 @ V_M1 @ V_R0) & ((V_R0 != sl_ctor_true) & (sl_rel_filter @ V_filter_undera0 @ V_M0 @ V_R1))))) => (sl_rel_filter @ V_filter_undera0 @ V_filter_undera1 @ V_R1))))).
+thf(sl_rule_twice_underc0_underp0,axiom,(! [V_twice_undera0:value,V_twice_undera1:value,V_R0:value,V_R1:value] : ((((sl_rel_sl_apply_1 @ V_twice_undera0 @ V_twice_undera1 @ V_R0) & (sl_rel_sl_apply_1 @ V_twice_undera0 @ V_R0 @ V_R1)) => (sl_rel_twice @ V_twice_undera0 @ V_twice_undera1 @ V_R1))))).
+thf(sl_rule_sl_apply_1_underdouble,axiom,(! [V_sl_apply_1_undera0:value,V_sl_apply_1_underr:value] : (((sl_rel_double @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr) => (sl_rel_sl_apply_1 @ (sl_ctor_symbol @ sl_sym_double) @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr))))).
+thf(sl_rule_sl_apply_1_underpositive_q,axiom,(! [V_sl_apply_1_undera0:value,V_sl_apply_1_underr:value] : (((sl_rel_positive_q @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr) => (sl_rel_sl_apply_1 @ (sl_ctor_symbol @ sl_sym_positive_q) @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr))))).
+thf(sl_least_double,axiom,(! [R_double:(value > value > $o)] : (((! [V_double_undera0:value,I_double_undera0:$int] : (((V_double_undera0 = (sl_ctor_int @ I_double_undera0)) => (R_double @ V_double_undera0 @ (sl_ctor_int @ $product(2,I_double_undera0)))))) => (! [V_A0:value,V_Result:value] : (((sl_rel_double @ V_A0 @ V_Result) => (R_double @ V_A0 @ V_Result)))))))).
+thf(sl_least_positive_q,axiom,(! [R_positive_q:(value > value > $o)] : ((((! [V_positive_q_undera0:value,I_positive_q_undera0:$int] : ((((V_positive_q_undera0 = (sl_ctor_int @ I_positive_q_undera0)) & $greater(I_positive_q_undera0,0)) => (R_positive_q @ V_positive_q_undera0 @ sl_ctor_true)))) & (! [V_positive_q_undera0:value,I_positive_q_undera0:$int] : ((((V_positive_q_undera0 = (sl_ctor_int @ I_positive_q_undera0)) & $lesseq(I_positive_q_undera0,0)) => (R_positive_q @ V_positive_q_undera0 @ sl_ctor_false))))) => (! [V_A0:value,V_Result:value] : (((sl_rel_positive_q @ V_A0 @ V_Result) => (R_positive_q @ V_A0 @ V_Result)))))))).
+thf(sl_least_map,axiom,(! [R_map:(value > value > value > $o)] : ((((! [V_map_undera0:value,V_map_undera1:value] : (((V_map_undera1 = sl_ctor_nil) => (R_map @ V_map_undera0 @ V_map_undera1 @ sl_ctor_nil)))) & (! [V_map_undera0:value,V_map_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_map_undera1 = sl_ctor_nil))) & ((V_map_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_map_undera0 @ V_M1 @ V_R0) & (R_map @ V_map_undera0 @ V_M0 @ V_R1)))) => (R_map @ V_map_undera0 @ V_map_undera1 @ (sl_ctor_cons @ V_R0 @ V_R1)))))) => (! [V_A0:value,V_A1:value,V_Result:value] : (((sl_rel_map @ V_A0 @ V_A1 @ V_Result) => (R_map @ V_A0 @ V_A1 @ V_Result)))))))).
+thf(sl_least_filter,axiom,(! [R_filter:(value > value > value > $o)] : ((((! [V_filter_undera0:value,V_filter_undera1:value] : (((V_filter_undera1 = sl_ctor_nil) => (R_filter @ V_filter_undera0 @ V_filter_undera1 @ sl_ctor_nil)))) & ((! [V_filter_undera0:value,V_filter_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_filter_undera1 = sl_ctor_nil))) & ((V_filter_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_filter_undera0 @ V_M1 @ V_R0) & ((V_R0 = sl_ctor_true) & (R_filter @ V_filter_undera0 @ V_M0 @ V_R1))))) => (R_filter @ V_filter_undera0 @ V_filter_undera1 @ (sl_ctor_cons @ V_M1 @ V_R1))))) & (! [V_filter_undera0:value,V_filter_undera1:value,V_M1:value,V_M0:value,V_R0:value,V_R1:value] : (((~(? [Dummy:value] : ((V_filter_undera1 = sl_ctor_nil))) & ((V_filter_undera1 = (sl_ctor_cons @ V_M1 @ V_M0)) & ((sl_rel_sl_apply_1 @ V_filter_undera0 @ V_M1 @ V_R0) & ((V_R0 != sl_ctor_true) & (R_filter @ V_filter_undera0 @ V_M0 @ V_R1))))) => (R_filter @ V_filter_undera0 @ V_filter_undera1 @ V_R1)))))) => (! [V_A0:value,V_A1:value,V_Result:value] : (((sl_rel_filter @ V_A0 @ V_A1 @ V_Result) => (R_filter @ V_A0 @ V_A1 @ V_Result)))))))).
+thf(sl_least_twice,axiom,(! [R_twice:(value > value > value > $o)] : (((! [V_twice_undera0:value,V_twice_undera1:value,V_R0:value,V_R1:value] : ((((sl_rel_sl_apply_1 @ V_twice_undera0 @ V_twice_undera1 @ V_R0) & (sl_rel_sl_apply_1 @ V_twice_undera0 @ V_R0 @ V_R1)) => (R_twice @ V_twice_undera0 @ V_twice_undera1 @ V_R1)))) => (! [V_A0:value,V_A1:value,V_Result:value] : (((sl_rel_twice @ V_A0 @ V_A1 @ V_Result) => (R_twice @ V_A0 @ V_A1 @ V_Result)))))))).
+thf(sl_least_sl_apply_1,axiom,(! [R_sl_apply_1:(value > value > value > $o)] : ((((! [V_sl_apply_1_undera0:value,V_sl_apply_1_underr:value] : (((sl_rel_double @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr) => (R_sl_apply_1 @ (sl_ctor_symbol @ sl_sym_double) @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr)))) & (! [V_sl_apply_1_undera0:value,V_sl_apply_1_underr:value] : (((sl_rel_positive_q @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr) => (R_sl_apply_1 @ (sl_ctor_symbol @ sl_sym_positive_q) @ V_sl_apply_1_undera0 @ V_sl_apply_1_underr))))) => (! [V_A0:value,V_A1:value,V_Result:value] : (((sl_rel_sl_apply_1 @ V_A0 @ V_A1 @ V_Result) => (R_sl_apply_1 @ V_A0 @ V_A1 @ V_Result)))))))).

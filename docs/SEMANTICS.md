@@ -42,7 +42,40 @@ neither backend silently treats an unknown solver result as a proof.
 
 All modes exclude floating point, division, partial primitives, effects,
 mutable state, I/O, exceptions, dynamic loading, Prolog/backtracking,
-higher-order values, and user calls in clause guards.
+lambdas and partial application, and user calls in clause guards.
+
+## Function parameters
+
+Signatures may declare arrow types in argument positions. A clause-head
+variable at such a position is a function parameter: it may be applied,
+fully saturated, and passed on at other arrow positions; a defined
+function name may be passed where an arrow of its arity is expected.
+Arrow result types, nested arrows, lambdas, and partial application stay
+rejected (`sl-v006`, `sl-v041`, `sl-v043`..`sl-v048`).
+
+The logical model is defunctionalization by name: a function value is its
+name as a symbol. For each applied arity `N` the theory gains a relation
+`sl.apply-N` over `value^(N+1)` with one rule per defined arity-N
+function `f`:
+
+```text
+sl.apply-N('f, x1, ..., xN, r)  <=  f$(x1, ..., xN, r)
+```
+
+Applications `(F X)` lower to `sl.apply-1` premises. Rules are generated
+for every arity-N function, so query-injected names behave exactly as
+the evaluator does; junk applications (a symbol naming no function, or
+the wrong arity) simply have no derivation, again matching the
+evaluator. `sl.apply-N` participates in the SCC ordering as an ordinary
+node; its dependency on all arity-N functions can merge SCCs, which is a
+sound over-approximation for the simultaneous leastness conditions. The
+extended adequacy statement reads
+`P ⊢ (map f l) ⇓ v iff T(P) ⊨ map$('f, l, v)`.
+
+Names beginning with `sl.apply-` are reserved (`sl-v048`). A symbol used
+both as data and as a function name denotes one value; the theory and
+evaluator agree on this, and only the typed tsl reading distinguishes
+the two roles.
 
 ## tsl semantics
 

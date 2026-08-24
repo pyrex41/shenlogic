@@ -102,6 +102,54 @@
                     (= (sl-eval "examples/tsl-lists.shen"
                                 "(append2 [1 2] [3])")
                        [value [1 2 3]]))
+          (sl-check "ho-map-eval"
+                    (= (sl-eval "examples/v2-map.shen" "(map double [1 2 3])")
+                       [value [2 4 6]]))
+          (sl-check "ho-map-empty-eval"
+                    (= (sl-eval "examples/v2-map.shen" "(map double [])")
+                       [value []]))
+          (sl-check "ho-filter-eval"
+                    (= (sl-eval "examples/v2-map.shen"
+                                "(filter positive? [1 -2 3])")
+                       [value [1 3]]))
+          (sl-check "ho-twice-eval"
+                    (= (sl-eval "examples/v2-map.shen" "(twice double 3)")
+                       [value 12]))
+          (sl-check "reject-ho-no-signature"
+                    (sl-rejected? "tests/fixtures/ho-no-signature.shen"))
+          (sl-check "reject-ho-partial-apply"
+                    (sl-rejected? "tests/fixtures/ho-partial-apply.shen"))
+          (sl-check "reject-ho-result-arrow"
+                    (sl-rejected? "tests/fixtures/ho-result-arrow.shen"))
+          (sl-check "reject-ho-nested-arrow"
+                    (sl-rejected? "tests/fixtures/ho-nested-arrow.shen"))
+          (sl-check "reject-ho-escape"
+                    (sl-rejected? "tests/fixtures/ho-escape.shen"))
+          (sl-check "reject-ho-bad-fn-arg"
+                    (sl-rejected? "tests/fixtures/ho-bad-fn-arg.shen"))
+          (sl-check "reject-ho-reserved-name"
+                    (sl-rejected? "tests/fixtures/ho-reserved-name.shen"))
+          (sl-check "map-graph"
+                    (= (sl-render "examples/v2-map.shen" "graph")
+                       (sl-read "tests/golden/map.graph.logic")))
+          (sl-check "map-slir"
+                    (= (sl-render "examples/v2-map.shen" "slir")
+                       (sl-read "tests/golden/map.slir")))
+          (sl-check "map-chc"
+                    (= (sl-render "examples/v2-map.shen" "chc")
+                       (sl-read "tests/golden/map.chc")))
+          (sl-check "map-thf"
+                    (= (sl-render "examples/v2-map.shen" "thf")
+                       (sl-read "tests/golden/map.thf")))
+          (sl-check "map-surface"
+                    (= (sl-render "examples/v2-map.shen" "surface")
+                       (sl-read "tests/golden/map.surface.logic")))
+          (sl-check "map-certificate"
+                    (certificate-test-file-success "examples/v2-map.shen"))
+          (sl-check "map-query-chc"
+                    (= (hd (shenlogic.query-file "examples/v2-map.shen"
+                             "(map double [1 2])" "[2 4]" "chc"))
+                       ok))
           (sl-check "strict-let-eval"
                     (= (sl-eval "examples/strict.shen" "(strict-probe 4)")
                        [value 10]))

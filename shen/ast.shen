@@ -21,8 +21,45 @@
   Type -> (let Parts (shenlogic.ast.signature-parts
                         (shenlogic.ast.signature-source-list Type) [] false)
              (if (= (hd Parts) ok)
-                 [signature (hd (hd (tl Parts))) (hd (tl (hd (tl Parts))))]
+                 [signature (map (/. T (shenlogic.ast.normalize-type T))
+                                 (hd (hd (tl Parts))))
+                            (shenlogic.ast.normalize-type
+                              (hd (tl (hd (tl Parts)))))]
                  [error sl-a001 Type])))
+
+\\ Normalize the explicit cons-chain representation that declare-form types
+\\ arrive in, recursively, so nested arrow types compare and destructure the
+\\ same way whichever surface syntax produced them.
+(define shenlogic.ast.normalize-type
+  [cons X Xs] -> (map (/. T (shenlogic.ast.normalize-type T))
+                      (shenlogic.ast.signature-source-list [cons X Xs]))
+  T -> (if (cons? T)
+           (map (/. U (shenlogic.ast.normalize-type U)) T)
+           T))
+
+\\ Helpers over normalized types: a top-level arrow type is a flat list
+\\ with at least one --> separator.
+(define shenlogic.ast.arrow-type?
+  T -> (if (cons? T)
+           (= (hd (shenlogic.ast.signature-parts T [] false)) ok)
+           false))
+
+(define shenlogic.ast.arrow-parts
+  T -> (let Parts (shenlogic.ast.signature-parts T [] false)
+         (if (= (hd Parts) ok)
+             [found (hd (hd (tl Parts))) (hd (tl (hd (tl Parts))))]
+             none)))
+
+(define shenlogic.ast.arrow-args
+  T -> (let P (shenlogic.ast.arrow-parts T)
+         (if (= P none) [] (hd (tl P)))))
+
+(define shenlogic.ast.arrow-result
+  T -> (let P (shenlogic.ast.arrow-parts T)
+         (if (= P none) none (hd (tl (tl P))))))
+
+(define shenlogic.ast.arrow-arity
+  T -> (length (shenlogic.ast.arrow-args T)))
 
 \\ A declaration's bracketed type arrives from the raw reader as an explicit
 \\ cons chain (unlike an inline brace signature's token list).  Flatten only
@@ -129,13 +166,15 @@
     [e-or (shenlogic.ast.normalize-expr A Names Constructors)
           (shenlogic.ast.normalize-expr B Names Constructors)]
   [Op | Args] Names Constructors ->
-    (if (element? Op [+ - * = neq < > <= >= / div mod])
-        [e-prim Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
-        (if (element? Op Names)
-            [e-call Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
-            (if (shenlogic.ast.constructor-known? Op Constructors)
-                [e-ctor Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
-                [e-call Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]))))
+    (if (variable? Op)
+        [e-apply Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
+        (if (element? Op [+ - * = neq < > <= >= / div mod])
+            [e-prim Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
+            (if (element? Op Names)
+                [e-call Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
+                (if (shenlogic.ast.constructor-known? Op Constructors)
+                    [e-ctor Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]
+                    [e-call Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)])))))
 
 (define shenlogic.ast.normalize-pattern-list-expr
   [] _ _ -> []

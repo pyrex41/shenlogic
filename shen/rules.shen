@@ -4,12 +4,113 @@
   [program Definitions] ->
     (let Names (map (/. D (shenlogic.ast.definition-name D)) Definitions)
       (let Rules (rules.compile-definitions Definitions Names)
-        [theory [value-signature (rules.value-signature [program Definitions])]
-                (rules.relations Definitions)
-                Rules
-                (rules.sccs Definitions Names)
-                [name-map (rules.name-map Names)]]))
+        (let Arities (rules.apply-arities Definitions)
+          [theory [value-signature (rules.value-signature [program Definitions])]
+                  (append (rules.relations Definitions)
+                          (rules.apply-relations Arities))
+                  (append Rules (rules.apply-rules Arities Definitions))
+                  (rules.sccs Definitions Names)
+                  [name-map (rules.name-map
+                              (append Names (rules.apply-names Arities)))]])))
   X -> (error [sl-rules-invalid-program X]))
+
+\\ Defunctionalized application: a function value is its name as a symbol,
+\\ and each applied arity N gets an sl.apply-N relation whose rules dispatch
+\\ every defined arity-N function.  Nothing is generated for programs that
+\\ never apply a variable, so their theories are byte-identical to before.
+(define rules.apply-name
+  N -> (intern (cn "sl.apply-" (str N))))
+
+(define rules.apply-names
+  [] -> []
+  [N | Ns] -> [(rules.apply-name N) | (rules.apply-names Ns)])
+
+(define rules.apply-arities
+  Definitions -> (rules.arity-sort
+                   (rules.unique (rules.apply-arities-defs Definitions))))
+
+(define rules.arity-sort
+  [] -> []
+  [N | Ns] -> (append (rules.arity-sort (rules.smaller-than N Ns))
+                      [N | (rules.arity-sort (rules.not-smaller-than N Ns))]))
+(define rules.smaller-than
+  _ [] -> []
+  N [M | Ms] -> (if (< M N) [M | (rules.smaller-than N Ms)]
+                    (rules.smaller-than N Ms)))
+(define rules.not-smaller-than
+  _ [] -> []
+  N [M | Ms] -> (if (< M N) (rules.not-smaller-than N Ms)
+                    [M | (rules.not-smaller-than N Ms)]))
+
+(define rules.apply-arities-defs
+  [] -> []
+  [[definition _ _ Cs _] | Ds] ->
+    (append (rules.apply-arities-clauses Cs) (rules.apply-arities-defs Ds))
+  [_ | Ds] -> (rules.apply-arities-defs Ds))
+
+(define rules.apply-arities-clauses
+  [] -> []
+  [[clause _ _ G B] | Cs] ->
+    (append (rules.apply-arities-guard G)
+      (append (rules.apply-arities-expr B)
+              (rules.apply-arities-clauses Cs))))
+
+(define rules.apply-arities-guard
+  none -> []
+  [some G] -> (rules.apply-arities-expr G)
+  G -> (rules.apply-arities-expr G))
+
+(define rules.apply-arities-expr
+  [e-apply _ Args] -> [(length Args) | (rules.apply-arities-list Args)]
+  [e-ctor _ Args] -> (rules.apply-arities-list Args)
+  [e-call _ Args] -> (rules.apply-arities-list Args)
+  [e-prim _ Args] -> (rules.apply-arities-list Args)
+  [e-if C T F] -> (rules.apply-arities-list [C T F])
+  [e-let _ A B] -> (rules.apply-arities-list [A B])
+  [e-and A B] -> (rules.apply-arities-list [A B])
+  [e-or A B] -> (rules.apply-arities-list [A B])
+  _ -> [])
+
+(define rules.apply-arities-list
+  [] -> []
+  [E | Es] -> (append (rules.apply-arities-expr E)
+                      (rules.apply-arities-list Es)))
+
+(define rules.apply-relations
+  [] -> []
+  [N | Ns] -> [[relation (rules.apply-name N) (rules.sorts (+ N 1)) value] |
+               (rules.apply-relations Ns)])
+
+(define rules.apply-rules
+  [] _ -> []
+  [N | Ns] Definitions ->
+    (append (rules.apply-rules-arity N (rules.arity-defs N Definitions) 0)
+            (rules.apply-rules Ns Definitions)))
+
+(define rules.arity-defs
+  _ [] -> []
+  N [[definition F _ _ N] | Ds] -> [F | (rules.arity-defs N Ds)]
+  N [_ | Ds] -> (rules.arity-defs N Ds))
+
+(define rules.apply-rules-arity
+  _ [] _ -> []
+  N [F | Fs] K ->
+    (let Vars (rules.apply-vars N 0)
+      [[rule (intern (@s "sl.apply-" (str N) "_" (str F)))
+             (rules.apply-name N) K 0
+             [[v-symbol F] | (rules.arg-terms Vars)]
+             (append (rules.arg-bounds Vars) [[v-var (rules.apply-result N)]])
+             [[call F (rules.arg-terms Vars) [v-var (rules.apply-result N)]]]
+             [v-var (rules.apply-result N)]] |
+       (rules.apply-rules-arity N Fs (+ K 1))]))
+
+(define rules.apply-vars
+  N N -> []
+  N I -> [(intern (@s "sl.apply-" (str N) "_a" (str I))) |
+          (rules.apply-vars N (+ I 1))])
+
+(define rules.apply-result
+  N -> (intern (@s "sl.apply-" (str N) "_r")))
 
 (define rules.value-signature
   Program -> (rules.value-signature-with Program
@@ -205,6 +306,8 @@
   [e-value X] S _ -> [(rules.rs-take S (rules.term X (rules.rs-e S)))]
   [e-ctor Tag Args] S Ns -> (rules.constructor Tag Args S Ns)
   [e-call Op Args] S Ns -> (rules.call Op Args S Ns)
+  [e-apply F Args] S Ns ->
+    (rules.call (rules.apply-name (length Args)) [[e-var F] | Args] S Ns)
   [e-if C T F] S Ns -> (let B (rules.bool C S Ns)
                         (append (rules.expr-frontier T (hd (tl B)) Ns)
                                 (rules.expr-frontier F (hd (tl (tl B))) Ns)))
@@ -483,17 +586,43 @@
   [] -> []
   [X | Xs] -> (if (element? X Xs) (rules.unique Xs) [X | (rules.unique Xs)]))
 
-\\ Deterministic SCCs over raw source calls.
+\\ Deterministic SCCs over the normalized call graph.  Apply relations are
+\\ ordinary nodes: a definition that applies an N-ary parameter depends on
+\\ sl.apply-N, and sl.apply-N depends on every arity-N definition.
 (define rules.sccs
-  Definitions Names -> (rules.scc-list Names (rules.adjacency Definitions Names) []))
+  Definitions Names ->
+    (let Arities (rules.apply-arities Definitions)
+      (rules.scc-list (append Names (rules.apply-names Arities))
+        (append (rules.adjacency Definitions Names)
+                (rules.apply-adjacency Arities Definitions)) [])))
 (define rules.adjacency
   [] _ -> []
-  [[definition N _ Cs _] | Ds] Ns -> [[edge N (rules.calls Cs Ns)] |
-                                         (rules.adjacency Ds Ns)])
+  [[definition N _ Cs _] | Ds] Ns ->
+    [[edge N (rules.unique
+               (append (rules.calls Cs Ns)
+                       (rules.apply-names
+                         (rules.arity-sort
+                           (rules.unique
+                             (rules.apply-arities-clauses Cs))))))] |
+     (rules.adjacency Ds Ns)])
+(define rules.apply-adjacency
+  [] _ -> []
+  [N | Ns] Definitions ->
+    [[edge (rules.apply-name N) (rules.arity-defs N Definitions)] |
+     (rules.apply-adjacency Ns Definitions)])
 (define rules.calls
   X Ns -> (rules.unique (rules.walk X Ns)))
 (define rules.walk
   [] _ -> []
+  [e-call Op Args] Ns -> (append (if (element? Op Ns) [Op] [])
+                                 (rules.walk-list Args Ns))
+  [e-apply _ Args] Ns -> (rules.walk-list Args Ns)
+  [e-ctor _ Args] Ns -> (rules.walk-list Args Ns)
+  [e-prim _ Args] Ns -> (rules.walk-list Args Ns)
+  [e-if C T F] Ns -> (rules.walk-list [C T F] Ns)
+  [e-let _ A B] Ns -> (rules.walk-list [A B] Ns)
+  [e-and A B] Ns -> (rules.walk-list [A B] Ns)
+  [e-or A B] Ns -> (rules.walk-list [A B] Ns)
   [F | As] Ns -> (append (if (element? F Ns) [F] []) (rules.walk-list As Ns))
   _ _ -> [])
 (define rules.walk-list
@@ -516,8 +645,11 @@
   N [[edge N X] | _] -> X
   N [_ | Xs] -> (rules.neigh N Xs))
 (define rules.rev
-  [] -> []
-  [[edge N _] | Xs] -> [[edge N (rules.pred N Xs)] | (rules.rev Xs)])
+  Adj -> (rules.rev-with Adj Adj))
+(define rules.rev-with
+  [] _ -> []
+  [[edge N _] | Xs] All -> [[edge N (rules.pred N All)] |
+                            (rules.rev-with Xs All)])
 (define rules.pred
   _ [] -> []
   N [[edge M X] | Xs] -> (if (element? N X) [M | (rules.pred N Xs)]
