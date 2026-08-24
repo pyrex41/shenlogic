@@ -1,28 +1,147 @@
 # ShenLogic
 
-ShenLogic translates a small, pure subset of Shen into logical specifications.
-It is implemented entirely in Shen and is portable across conforming Shen 41.2
-implementations. The regression suite currently passes on
-[shen-go](https://github.com/pyrex41/shen-go),
+ShenLogic compiles a pure subset of [Shen](https://shenlanguage.org) into
+formal logic. For each function it emits a machine-checkable theory —
+typed equations, definedness predicates, and datatype axioms — that states
+exactly what the function computes, so Shen programs can be verified
+against specifications with off-the-shelf provers, and so verified
+properties can travel with the program wherever a trusted port takes it.
+The translation also runs in reverse, in a bounded way: edit the generated
+equations and ShenLogic can search for a source patch that makes the edits
+true again.
+
+ShenLogic is implemented entirely in Shen and is portable across
+conforming Shen 41.2 implementations. The regression suite currently
+passes on [shen-go](https://github.com/pyrex41/shen-go),
 [shen-cl](https://github.com/pyrex41/shen-cl), and
 [shen-lua](https://github.com/pyrex41/shen-lua).
 
-For each supported Shen function, ShenLogic can produce:
+## From code to logic
 
-- `surface`: compact equations for review;
-- `graph`: relational rules describing terminating evaluations;
-- `slir`: the canonical ShenLogic intermediate representation;
-- `chc`: SMT-LIB constrained Horn clauses;
-- `thf`: typed higher-order TPTP formulas;
-- `tsl`: typed second-order equations with definedness guards and
-  constructor axioms (see [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md)).
+Shen functions are ordered, guarded pattern-matching rules:
 
-The graph, CHC, and THF outputs use an explicit result relation. This preserves
-partiality: if a Shen call does not terminate, the generated graph does not
-assign it a result. The `tsl` output preserves partiality equationally: calls
-to functions a conservative termination check cannot prove total are guarded
-by `defined-` antecedents, so a divergent definition never makes the theory
-inconsistent.
+```shen
+(define factorial
+  { number --> number }
+  0 -> 1
+  X -> (* X (factorial (- X 1))))
+```
+
+`./bin/shenlogic translate examples/factorial.shen --format tsl` turns
+that definition into a typed second-order theory:
+
+```text
+; totality: factorial unknown (no descent measure found)
+
+; definedness: factorial
+(defined-factorial 0)
+(all X : number ((and (~ (X = 0)) (defined-factorial (- X 1))) => (defined-factorial X)))
+(all X : number ((defined-factorial X) => (or (X = 0) (and (~ (X = 0)) (defined-factorial (- X 1))))))
+(all P : (number => o) ((and (P 0) (all X : number ((and (~ (X = 0)) (P (- X 1))) => (P X)))) => (all X : number ((defined-factorial X) => (P X)))))
+
+; equations
+((factorial 0) = 1)
+(all X : number ((and (~ (X = 0)) (defined-factorial (- X 1))) => ((factorial X) = (* X (factorial (- X 1))))))
+```
+
+Three things happen here that a naive clauses-to-equations reading gets
+wrong:
+
+- **Clause order is compiled away.** The second clause only fires after
+  the first fails, so its equation carries the antecedent `(~ (X = 0))`.
+  When an earlier clause has constructor patterns, the condition becomes
+  an existentially quantified non-match, and conditions that constructor
+  disjointness already decides are pruned.
+- **Partiality is explicit.** `factorial` diverges on negative inputs, and
+  the termination classifier cannot prove it total, so its recursive
+  equation is guarded by `defined-factorial`, which is axiomatized as the
+  least predicate closed under the clause structure. This is not
+  pedantry: the unguarded equation for a divergent function such as
+  `(define d N -> (+ 1 (d N)))` would let classical arithmetic derive
+  `0 = 1` and poison every theorem in the program. Guarded, the same
+  theory instead proves `(~ (defined-d N))` — the right answer.
+- **Disequalities are provable.** Programs that use lists or free
+  constructors get injectivity, disjointness, and structural induction
+  axioms, so facts like `(~ ((cons X Y) = ()))` are theorems rather than
+  wishes. A theory of bare conditional equations plus congruence cannot
+  prove them.
+
+When the conservative termination check does prove a function total —
+structural descent, lexicographic descent, or an integer measure with a
+guard-derived bound — the guards disappear and the equations take the
+textbook form:
+
+```text
+; totality: append2 total (structural descent at argument 0)
+(all A : type (all Ys : (list A) ((append2 () Ys) = Ys)))
+(all A : type (all X : A (all Xs : (list A) (all Ys : (list A) ((append2 (cons X Xs) Ys) = (cons X (append2 Xs Ys)))))))
+```
+
+Polymorphism and function parameters render natively; `map` comes out as
+
+```text
+(all A : type (all B : type (all F : (A --> B) ((map F ()) = ()))))
+```
+
+with each application site contributing a `defined-apply-1` obligation.
+The logic these theories live in — sorts, deduction rules, intended
+models — is pinned down in [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md).
+
+## What this enables
+
+- **Check concrete facts with a solver.** `shenlogic query` emits an
+  SMT-LIB Horn query for a ground claim; Z3 answers `sat` for facts the
+  program actually computes and `unsat` for facts it does not — including
+  through higher-order calls like `(map double [1 2]) = [2 4]`.
+- **Prove properties against specifications.** The emitted equations,
+  induction schemas, and definedness axioms are a proof-ready
+  axiomatization. They describe what the code does, not what its author
+  meant: give `length` a recursive clause that forgets the `+ 1` and the
+  theory faithfully lets you prove `(all Xs ((length Xs) = 0))` by list
+  induction — which is exactly why checking it against an independent
+  specification catches the bug.
+- **Round-trip repair.** Because the equation view is faithful, a bounded
+  edit to it can be pushed back into source: `shenlogic repair` searches
+  for a patched definition that regenerates the edited equations and
+  passes a contract of examples and Z3-checked laws (details below).
+- **A second, executable opinion.** The built-in evaluator is the
+  semantic oracle for every translation decision, and the whole suite
+  runs byte-identically on three independent Shen hosts, so the logic is
+  tested against running code, not intuition.
+
+## How it works
+
+Everything downstream of the reader treats source as inert data:
+
+1. **Read and normalize.** Definitions are parsed into a tagged AST; no
+   source form is evaluated during lowering.
+2. **Validate.** Unsupported behavior is rejected with a diagnostic
+   instead of being approximated (see the fragment below).
+3. **Compile to the Rule IR.** Ordered clauses, guards, and fallback
+   become explicit, mutually exclusive decision paths over a relation
+   `f$(arguments, result)` meaning "evaluation terminates with result".
+   Recursive relations are grouped into strongly connected components
+   with simultaneous least-fixed-point conditions.
+4. **Render.** Backends print the same theory in different logics, and a
+   typing pass plus termination classifier produce the guarded equational
+   view:
+
+   - `surface`: compact untyped equations for review;
+   - `graph`: readable relational rules describing terminating
+     evaluations;
+   - `slir`: the canonical ShenLogic intermediate representation;
+   - `chc`: SMT-LIB constrained Horn clauses for Z3;
+   - `thf`: typed higher-order TPTP formulas;
+   - `tsl`: typed second-order equations with definedness guards and
+     constructor axioms (see [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md)).
+
+The graph, CHC, and THF outputs preserve partiality through the result
+relation: a call that does not terminate is simply assigned no result.
+The `tsl` output preserves it equationally through `defined-` guards, so
+a divergent definition never makes the theory inconsistent. Function
+values are modeled by name (defunctionalization via generated
+`sl.apply-N` relations), which keeps the theory first-order everywhere a
+first-order solver needs it to be.
 
 ## Requirements
 
@@ -81,6 +200,8 @@ Create and check the deterministic certificate bundle:
 ```sh
 ./bin/shenlogic certify examples/factorial.shen --out build/certificate
 ```
+
+## Round-trip repair
 
 Repair Shen source from an edited `tsl` equation view. Generate the view from
 the exact source revision being repaired, edit only its `; equations` section,
@@ -141,20 +262,13 @@ in guards.
 See [docs/SEMANTICS.md](docs/SEMANTICS.md) for the precise contract and
 [docs/IR.md](docs/IR.md) for the SLIR v2 format.
 
-## Meaning of the generated graph
+## The correctness claim, stated honestly
 
-For a Shen function `f`, ShenLogic generates a relation of the form:
-
-```text
-f$(arguments, result)
-```
-
-The relation means that evaluating `f(arguments)` terminates with `result`.
-Clause order and guard fallback are represented explicitly. Recursive
-relations are grouped into strongly connected components and given
-simultaneous leastness conditions.
-
-The intended correctness theorem is:
+For a Shen function `f`, the generated relation `f$(arguments, result)`
+means that evaluating `f(arguments)` terminates with `result`. Clause
+order and guard fallback are represented explicitly, and recursive
+relations carry simultaneous leastness conditions. The intended
+correctness theorem is:
 
 ```text
 P ⊢ f(a₁,…,aₙ) ⇓ v  iff  T(P) ⊨ f$(a₁,…,aₙ,v)
