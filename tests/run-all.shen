@@ -250,6 +250,22 @@
           (sl-check "tsl-simplify-tsl"
                     (= (sl-render "examples/tsl-simplify.shen" "tsl")
                        (sl-read "tests/golden/tsl-simplify.tsl.logic")))
+          (sl-check "tsl-linarith-tsl"
+                    (= (sl-render "examples/tsl-linarith.shen" "tsl")
+                       (sl-read "tests/golden/tsl-linarith.tsl.logic")))
+          (sl-check "linarith-eval-countdown"
+                    (= (sl-eval "examples/tsl-linarith.shen" "(countdown 7)")
+                       [value 0]))
+          (sl-check "linarith-eval-countup"
+                    (= (sl-eval "examples/tsl-linarith.shen" "(countup -3)")
+                       [value 1]))
+          (sl-check "linarith-classify"
+                    (= (termination.classify
+                         (shenlogic.program "examples/tsl-linarith.shen"))
+                       [totality [[countdown total [int-measure 0]]
+                                  [halveish total [int-measure 0]]
+                                  [countup total [int-ascent 0]]
+                                  [wobble unknown [no-descent]]]]))
           (sl-check "simp-unit-context-drop"
                     (= (tsl.simp-obligations
                          [[f-defined d [[e-var vx]]]

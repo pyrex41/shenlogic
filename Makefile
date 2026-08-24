@@ -103,7 +103,8 @@ build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
 		shen/ast.shen shen/reader.shen shen/validate.shen shen/decision.shen \
 		shen/rules.shen shen/serialize.shen shen/evaluator.shen \
 		shen/certificate.shen shen/surface.shen shen/graph.shen shen/chc.shen \
-		shen/thf.shen shen/typing.shen shen/termination.shen shen/tsl.shen \
+		shen/thf.shen shen/typing.shen shen/linarith.shen \
+		shen/termination.shen shen/tsl.shen \
 		shen/repair.shen shen/workflow.shen shenlogic.shen shen/cli.shen > $@
 
 shellcheck:

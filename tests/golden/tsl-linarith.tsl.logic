@@ -1,0 +1,22 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: countdown total (integer descent at argument 0 with guard lower bound)
+; totality: halveish total (integer descent at argument 0 with guard lower bound)
+; totality: countup total (integer ascent at argument 0 with guard upper bound)
+; totality: wobble unknown (no descent measure found)
+
+; definedness: wobble
+(all X : number ((and (> X 0) (defined-wobble (* 2 X))) => (defined-wobble X)))
+(all W0 : number ((~ (> W0 0)) => (defined-wobble W0)))
+(all X : number ((defined-wobble X) => (or (and (> X 0) (defined-wobble (* 2 X))) (~ (> X 0)))))
+(all P : (number => o) ((and (all X : number ((and (> X 0) (P (* 2 X))) => (P X))) (all W0 : number ((~ (> W0 0)) => (P W0)))) => (all X : number ((defined-wobble X) => (P X)))))
+
+; equations
+(all X : number ((> X 0) => ((countdown X) = (countdown (- (+ X 1) 2)))))
+(all W0 : number ((~ (> W0 0)) => ((countdown W0) = 0)))
+(all X : number ((> X 0) => ((halveish X) = (halveish (- X (+ 1 1))))))
+(all W0 : number ((~ (> W0 0)) => ((halveish W0) = 0)))
+(all X : number ((< X 10) => ((countup X) = (countup (+ X 1)))))
+(all W0 : number ((~ (< W0 10)) => ((countup W0) = 1)))
+(all X : number ((and (> X 0) (defined-wobble (* 2 X))) => ((wobble X) = (wobble (* 2 X)))))
+(all W0 : number ((~ (> W0 0)) => ((wobble W0) = 0)))

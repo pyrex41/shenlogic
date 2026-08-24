@@ -308,9 +308,11 @@
   Sites I MinA ->
     (if (termination.structural-at? Sites I)
         [structural I]
-        (if (termination.int-at? Sites I)
+        (if (termination.int-at? Sites I down)
             [int-measure I]
-            (termination.scheme-single Sites (+ I 1) MinA))))
+            (if (termination.int-at? Sites I up)
+                [int-ascent I]
+                (termination.scheme-single Sites (+ I 1) MinA)))))
 
 (define termination.scheme-lex
   _ I _ MinA -> none where (>= I MinA)
@@ -349,39 +351,43 @@
   [e-var V] [p-var V] -> true
   _ _ -> false)
 
-\\ Integer measure: every in-SCC call passes (- V k) with a positive literal
-\\ k at a position whose caller pattern is the bare variable V, and the
-\\ clause's own guard bounds V from below.  Exclusion-derived facts such as
-\\ (~ (V = 0)) are deliberately not accepted: they give no lower bound.
+\\ Integer measure: every in-SCC call's argument at the position must
+\\ normalize (linarith canonical linear form) to exactly V + K for the
+\\ head variable V there, with a uniform direction across all sites:
+\\ K < 0 needs a guard-derived lower bound on V, K > 0 an upper bound.
+\\ A strictly monotone integer sequence bounded on the approached side
+\\ is finite; mixing directions across sites would break that argument,
+\\ so each pass demands one direction.  Exclusion-derived facts such as
+\\ (~ (V = 0)) are deliberately not accepted: they give no bound.
 (define termination.int-at?
-  [] _ -> true
-  [[rec-call Ps G _ Args] | Ss] I ->
+  [] _ _ -> true
+  [[rec-call Ps G _ Args] | Ss] I Dir ->
     (if (termination.int-step? (termination.nth Args I)
-          (termination.nth Ps I) G)
-        (termination.int-at? Ss I)
+          (termination.nth Ps I) G Dir)
+        (termination.int-at? Ss I Dir)
         false))
 
 (define termination.int-step?
-  [e-prim - [[e-var V] [e-value K]]] [p-var V] G ->
-    (if (and (integer? K) (> K 0))
-        (termination.bound? G V)
-        false)
-  _ _ _ -> false)
+  E [p-var V] G Dir ->
+    (let D (linarith.delta E V)
+      (if (= D none)
+          false
+          (if (= Dir down)
+              (if (< (hd (tl D)) 0) (termination.bound? G V lower) false)
+              (if (> (hd (tl D)) 0) (termination.bound? G V upper) false))))
+  _ _ _ _ -> false)
 
 (define termination.bound?
-  none _ -> false
-  [some G] V -> (termination.bound-conj? G V)
-  G V -> (termination.bound-conj? G V))
+  none _ _ -> false
+  [some G] V Kind -> (termination.bound-conj? G V Kind)
+  G V Kind -> (termination.bound-conj? G V Kind))
 
 (define termination.bound-conj?
-  [e-and A B] V -> (if (termination.bound-conj? A V)
-                       true
-                       (termination.bound-conj? B V))
-  [e-prim > [[e-var V] [e-value N]]] V -> (integer? N)
-  [e-prim >= [[e-var V] [e-value N]]] V -> (integer? N)
-  [e-prim < [[e-value N] [e-var V]]] V -> (integer? N)
-  [e-prim <= [[e-value N] [e-var V]]] V -> (integer? N)
-  _ _ -> false)
+  [e-and A B] V Kind -> (if (termination.bound-conj? A V Kind)
+                            true
+                            (termination.bound-conj? B V Kind))
+  [e-prim Op [A B]] V Kind -> (= (linarith.compare-bound Op A B V) Kind)
+  _ _ _ -> false)
 
 \\ --- SCC computation (correct predecessor edges) -------------------------
 

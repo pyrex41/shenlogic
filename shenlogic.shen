@@ -12,6 +12,7 @@
 (load "shen/chc.shen")
 (load "shen/thf.shen")
 (load "shen/typing.shen")
+(load "shen/linarith.shen")
 (load "shen/termination.shen")
 (load "shen/tsl.shen")
 (load "shen/repair.shen")

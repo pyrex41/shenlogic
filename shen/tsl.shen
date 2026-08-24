@@ -65,6 +65,8 @@
                               (str I) " and " (str J))
   [int-measure I] -> (@s "integer descent at argument " (str I)
                          " with guard lower bound")
+  [int-ascent I] -> (@s "integer ascent at argument " (str I)
+                        " with guard upper bound")
   [non-exhaustive F] -> (@s "non-exhaustive clauses in " (str F))
   [callee G] -> (@s "depends on " (str G))
   [no-descent] -> "no descent measure found"
