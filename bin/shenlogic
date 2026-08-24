@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -eu
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 if [ -n "${SHEN_GO:-}" ]; then
   HOST=$SHEN_GO
 elif [ -x "$ROOT/../shen-go/.bin/shen-go" ]; then
@@ -13,9 +13,98 @@ else
 fi
 case $HOST in
   /*) ;;
-  */*) HOST=$(CDPATH= cd -- "$(dirname -- "$HOST")" && pwd)/$(basename -- "$HOST") ;;
+  */*) HOST=$(CDPATH='' cd -- "$(dirname -- "$HOST")" && pwd)/$(basename -- "$HOST") ;;
 esac
 cd "$ROOT"
+
+# Repair laws cross the deliberately pure Shen/runtime boundary here.  The
+# Shen phase prepares immutable artifacts; Z3 must prove the bad-state query
+# unreachable before this wrapper prints or commits the proposed patch.
+if [ "${1:-}" = repair ]; then
+  REPAIR_FILE=${2:-}
+  [ -n "$REPAIR_FILE" ] || {
+    echo 'shenlogic repair: expected FILE --logic EDITED.tsl.logic --spec SPEC' >&2
+    exit 2
+  }
+  REPAIR_WRITE=false
+  for REPAIR_ARG in "$@"; do
+    case $REPAIR_ARG in
+      --prepare|--candidate-index)
+        echo "shenlogic repair: $REPAIR_ARG is reserved for the runtime wrapper" >&2
+        exit 2
+        ;;
+    esac
+    if [ "$REPAIR_ARG" = --write ]; then REPAIR_WRITE=true; fi
+  done
+  REPAIR_TEMP=$(mktemp -d "${TMPDIR:-/tmp}/shenlogic-repair.XXXXXX")
+  # shellcheck disable=SC2329  # Invoked indirectly by trap.
+  repair_cleanup() {
+    rm -rf -- "$REPAIR_TEMP"
+  }
+  trap repair_cleanup EXIT HUP INT TERM
+  REPAIR_INDEX=0
+  REPAIR_SELECTED=
+  while [ -z "$REPAIR_SELECTED" ]; do
+    REPAIR_CANDIDATE="$REPAIR_TEMP/candidate-$REPAIR_INDEX"
+    mkdir -p -- "$REPAIR_CANDIDATE"
+    if "$HOST" script shenlogic-cli.shen "$@" \
+        --prepare "$REPAIR_CANDIDATE" --candidate-index "$REPAIR_INDEX" \
+        2> "$REPAIR_CANDIDATE/prepare.err"; then
+      :
+    else
+      REPAIR_PREPARE_STATUS=$?
+      cat "$REPAIR_CANDIDATE/prepare.err" >&2
+      exit "$REPAIR_PREPARE_STATUS"
+    fi
+    if [ -f "$REPAIR_CANDIDATE/exhausted" ]; then
+      if [ "$REPAIR_INDEX" -eq 0 ]; then
+        echo 'shenlogic repair: no candidate satisfies the edited equations and ground contract' >&2
+      else
+        echo 'shenlogic repair: no candidate satisfies the quantified laws' >&2
+      fi
+      exit 1
+    fi
+    for REPAIR_ARTIFACT in source diff law.smt2 meta; do
+      [ -f "$REPAIR_CANDIDATE/$REPAIR_ARTIFACT" ] || {
+        echo "shenlogic repair: missing prepared artifact: $REPAIR_ARTIFACT" >&2
+        exit 2
+      }
+    done
+    if [ ! -s "$REPAIR_CANDIDATE/law.smt2" ]; then
+      REPAIR_SELECTED=$REPAIR_CANDIDATE
+    else
+      if [ -n "${Z3:-}" ]; then
+        REPAIR_Z3=$Z3
+      elif command -v z3 >/dev/null 2>&1; then
+        REPAIR_Z3=$(command -v z3)
+      else
+        echo 'shenlogic repair: quantified laws require Z3 (set Z3)' >&2
+        exit 127
+      fi
+      if ! "$REPAIR_Z3" -smt2 "$REPAIR_CANDIDATE/law.smt2" \
+          > "$REPAIR_CANDIDATE/z3.out"; then
+        echo 'shenlogic repair: Z3 failed while checking quantified laws' >&2
+        exit 2
+      fi
+      REPAIR_Z3_RESULT=$(sed -n '$p' "$REPAIR_CANDIDATE/z3.out")
+      case $REPAIR_Z3_RESULT in
+        unsat) REPAIR_SELECTED=$REPAIR_CANDIDATE ;;
+        sat) REPAIR_INDEX=$((REPAIR_INDEX + 1)) ;;
+        *)
+          echo "shenlogic repair: quantified law result is not conclusive: $REPAIR_Z3_RESULT" >&2
+          exit 1
+          ;;
+      esac
+    fi
+  done
+  if [ "$REPAIR_WRITE" = true ]; then
+    cp -- "$REPAIR_SELECTED/source" "$REPAIR_FILE"
+    cat "$REPAIR_SELECTED/meta"
+  else
+    cat "$REPAIR_SELECTED/diff"
+  fi
+  exit 0
+fi
 
 # The Shen runtime intentionally stays pure and does not own filesystem
 # layout.  Prepare output directories in the wrapper so the convenience

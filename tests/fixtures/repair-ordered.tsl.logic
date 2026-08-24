@@ -1,0 +1,9 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: classify total (non-recursive)
+
+; equations
+(all X : number ((<= X 0) => ((classify X) = nonpositive)))
+((~ (<= 1 0)) => ((classify 1) = one))
+((~ (<= 2 0)) => ((classify 2) = two))
+(all X : number ((and (~ (<= X 0)) (~ (X = 1)) (~ (X = 2))) => ((classify X) = positive)))

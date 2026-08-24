@@ -1,0 +1,6 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: declared-id total (non-recursive)
+
+; equations
+(all X : number ((declared-id X) = (+ X 1)))

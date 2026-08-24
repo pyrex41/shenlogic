@@ -16,6 +16,10 @@ Host load chatter is normalized by the suite. Canonical `.slir`, surface,
 graph, CHC, and THF files are compared byte-for-byte inside the shared Shen
 tests. A host that is unavailable is reported as skipped.
 
+`make bifrost` sets `SHEN_FASL=off`. This forces shen-lua to compile the
+current nested Shen modules instead of replaying a warm user-program image,
+so an edited dependency is always part of the conformance run.
+
 The first suite covers factorial, overlapping and repeated-variable patterns,
 Fibonacci, mutual recursion, guard rejection, and v2 Value/constructor cases.
 `bifrost.suite.json` is the source of truth for command arguments and expected

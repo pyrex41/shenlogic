@@ -38,6 +38,22 @@ and `G_f` the generated graph relation.
    (and `defined-apply-N(F,x̄) <=> exists r. sl.apply-N(F,x̄,r)`), every
    tsl equation and definedness axiom holds in the least graph model.
 
+Round-trip repair adds executable validation but does not discharge those
+semantic obligations. Its remaining proof obligations are:
+
+10. **Projection adequacy.** Inverting a source-shaped edited `tsl` equation
+    yields exactly the represented clause candidates, including priority
+    exclusions, guards, patterns, and bound-variable renaming.
+11. **Forward round-trip.** Candidate acceptance implies that retranslating
+    the repaired program reproduces the unchanged preamble and edited equation
+    set; the source splice re-parses to that same normalized candidate.
+12. **Contract lowering.** Each generated CHC bad-state rule is reachable iff
+    the corresponding supported graph-safety law has a terminating
+    counterexample. This obligation does not assert termination of law terms.
+13. **Search and ranking.** The bounded Prolog enumeration covers the declared
+    guard-choice space, and structural edit cost plus canonical tie-breaking
+    selects the advertised minimum among enumerated survivors.
+
 Proof development proceeds in that order: patterns, nonrecursive expressions,
 ordered clauses, direct recursion, then mutual recursion and leastness. Errors
 and effects remain outside v2 until they have explicit logical result objects.

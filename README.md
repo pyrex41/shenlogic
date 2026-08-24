@@ -25,8 +25,13 @@ assign it a result.
 
 - a Shen 41.2 implementation;
 - Go 1.25 only when building the default `shen-go` development host;
-- optional: Z3, TPTP4X, Lean 4.19, Bifrost, and Yggdrasil for the extended
-  validation workflow.
+- optional: Z3 4.15, TPTP4X, Lean 4.19, Bifrost, Yggdrasil, and ShellCheck for
+  the extended validation workflow.
+
+Ground-example repair uses only ShenLogic and its integrated Prolog. Z3 is
+required when a repair contract contains quantified laws. TPTP4X is a syntax
+gate for generated THF and is not needed at runtime. Exact tested revisions
+are recorded in [toolchain.lock](toolchain.lock).
 
 The bundled command-line wrapper and the basic Make targets use `shen-go` by
 default. The Shen source itself has no dependency on Go. Bifrost runs the same
@@ -38,6 +43,7 @@ suite through each installed Shen host.
 make host
 make test
 make check
+make repair-check
 make bifrost
 ```
 
@@ -72,6 +78,35 @@ Create and check the deterministic certificate bundle:
 ```sh
 ./bin/shenlogic certify examples/factorial.shen --out build/certificate
 ```
+
+Repair Shen source from an edited `tsl` equation view. Generate the view from
+the exact source revision being repaired, edit only its `; equations` section,
+then preview a patch:
+
+```sh
+./bin/shenlogic translate examples/factorial.shen \
+  --format tsl -o build/factorial.tsl.logic
+
+# This checked-in fixture is that view with factorial 0 changed from 1 to 2.
+./bin/shenlogic repair examples/factorial.shen \
+  --logic tests/fixtures/repair-factorial.tsl.logic \
+  --spec tests/fixtures/repair-factorial.spec
+
+# Apply only after all examples and quantified laws pass.
+./bin/shenlogic repair examples/factorial.shen \
+  --logic tests/fixtures/repair-factorial.tsl.logic \
+  --spec tests/fixtures/repair-factorial-law-true.spec --write
+```
+
+Without `--write`, repair emits a deterministic unified diff. It can change
+the target definition's patterns, guards, clauses, and bodies while keeping
+its name, signature, and arity fixed. Only the `; equations` section is an
+editable view; changes to generated scaffolding are rejected. Quantified laws
+require Z3. A rejected or inconclusive candidate leaves the source untouched;
+a successful `--write` replaces only the repaired definition. The definition
+is canonically formatted, so review the diff or keep the source under version
+control. See [docs/REPAIR.md](docs/REPAIR.md) for the repair contract, safety
+boundary, and current synthesis fragment.
 
 Commands return a nonzero status when source or an option is rejected.
 Diagnostics go to stderr, while generated artifacts go to stdout or the path
@@ -136,13 +171,21 @@ Useful workflow targets are:
 
 ```sh
 make test             # Shen regression and golden tests
+make repair-check     # repair CLI, solver rejection, and write barrier
+make shellcheck       # shell wrappers when ShellCheck is installed
 make certify          # deterministic certificate bundle
 make backend-check    # Z3 and TPTP4X checks when installed
 make proof            # Lean checks when installed
 make bifrost          # shen-go, shen-cl, and shen-lua conformance
 make yggdrasil-stage1 # standalone Go packaging gate
 make package          # reproducible source archive and SHA-256 manifest
+make test-all         # regression, host, proof, backend, and repair gates
 ```
+
+Targets that depend on optional tools report `SKIP` when a tool is absent.
+The release-readiness run uses the available pinned tools and all three Shen
+hosts; a passing executable test suite is evidence for the implemented
+fragment, not a substitute for the open proof obligations.
 
 Tool and host revisions are pinned in [toolchain.lock](toolchain.lock).
 Bifrost details are in
@@ -153,5 +196,8 @@ Bifrost details are in
 ShenLogic 0.2 is a clean-room implementation. It does not claim compatibility
 with an unavailable Shen2Logic implementation. The supported semantics and
 output formats are versioned and may change before the first public release.
+Round-trip repair is an experimental, bounded synthesis feature: it is not a
+general inverse for arbitrary axioms, and it fails closed outside its stated
+fragment.
 
 Licensed under Apache-2.0.

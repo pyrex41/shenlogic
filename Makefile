@@ -1,5 +1,5 @@
 .PHONY: host test smoke proof bifrost test-all package check certify query \
-	backend-check yggdrasil-stage1 shellcheck standalone-source
+	backend-check repair-check yggdrasil-stage1 shellcheck standalone-source
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
 SHEN_GO_ABS := $(if $(findstring /,$(SHEN_GO)),$(abspath $(SHEN_GO)),$(shell command -v $(SHEN_GO) 2>/dev/null))
@@ -36,17 +36,20 @@ backend-check:
 	./bin/shenlogic translate examples/factorial.shen --format chc -o build/backends/factorial.chc
 	./bin/shenlogic translate examples/factorial.shen --format thf -o build/backends/factorial.thf
 	@if command -v z3 >/dev/null 2>&1; then z3 -smt2 build/backends/factorial.chc; else echo 'SKIP: z3 is not installed'; fi
-	@if command -v tptp4X >/dev/null 2>&1; then tptp4X build/backends/factorial.thf; else echo 'SKIP: TPTP4X is not installed'; fi
+	@if command -v tptp4X >/dev/null 2>&1; then tptp4X build/backends/factorial.thf >/dev/null; else echo 'SKIP: TPTP4X is not installed'; fi
+
+repair-check:
+	sh tests/repair-cli.sh
 
 proof:
 	@if command -v lake >/dev/null 2>&1; then cd proof && lake build; else echo 'SKIP: lake is not installed'; fi
 
 bifrost:
-	@if [ -x ../bifrost/.bin/bifrost ]; then BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
-	elif command -v bifrost >/dev/null 2>&1; then BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
+	@if [ -x ../bifrost/.bin/bifrost ]; then SHEN_FASL=off BIFROST_SHEN_GO="$(SHEN_GO)" ../bifrost/.bin/bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
+	elif command -v bifrost >/dev/null 2>&1; then SHEN_FASL=off BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
 	else echo 'SKIP: bifrost binary not found'; fi
 
-test-all: test smoke proof bifrost certify backend-check
+test-all: test smoke shellcheck proof bifrost certify backend-check repair-check
 
 package:
 	@set -eu; \
@@ -101,7 +104,7 @@ build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
 		shen/rules.shen shen/serialize.shen shen/evaluator.shen \
 		shen/certificate.shen shen/surface.shen shen/graph.shen shen/chc.shen \
 		shen/thf.shen shen/typing.shen shen/termination.shen shen/tsl.shen \
-		shen/workflow.shen shenlogic.shen shen/cli.shen > $@
+		shen/repair.shen shen/workflow.shen shenlogic.shen shen/cli.shen > $@
 
 shellcheck:
-	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic; else echo 'SKIP: shellcheck is not installed'; fi
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic tests/repair-cli.sh; else echo 'SKIP: shellcheck is not installed'; fi

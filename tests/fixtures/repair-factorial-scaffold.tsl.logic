@@ -1,0 +1,13 @@
+; ShenLogic tsl v99
+; deduction system: docs/TSL-LOGIC.md
+; totality: factorial unknown (no descent measure found)
+
+; definedness: factorial
+(defined-factorial 0)
+(all X : number ((and (~ (X = 0)) (defined-factorial (- X 1))) => (defined-factorial X)))
+(all X : number ((defined-factorial X) => (or (X = 0) (and (~ (X = 0)) (defined-factorial (- X 1))))))
+(all P : (number => o) ((and (P 0) (all X : number ((and (~ (X = 0)) (P (- X 1))) => (P X)))) => (all X : number ((defined-factorial X) => (P X)))))
+
+; equations
+((factorial 0) = 2)
+(all X : number ((and (~ (X = 0)) (defined-factorial (- X 1))) => ((factorial X) = (* X (factorial (- X 1))))))

@@ -53,6 +53,29 @@
   Form [X | Xs] ->
     (or (sl-has-form? Form X) (sl-has-form-list? Form Xs)))
 
+(define sl-repair-factorial
+  Spec MaxCost -> (shenlogic.repair-file "examples/factorial.shen"
+                    "tests/fixtures/repair-factorial.tsl.logic"
+                    Spec 2000 100 MaxCost))
+
+(define sl-repair-ordered
+  -> (shenlogic.repair-file "examples/ordered.shen"
+        "tests/fixtures/repair-ordered.tsl.logic"
+        "tests/fixtures/repair-ordered.spec" 2000 100 50))
+
+(define sl-repair-query
+  [ok _ _ _ _ Query] -> Query
+  _ -> "")
+
+(define sl-repair-program
+  [ok _ _ Source _] ->
+    (let Parsed (shenlogic.reader.parse-program
+                  (read-from-string-unprocessed Source))
+      (if (= (hd Parsed) ok)
+          (shenlogic.ast.normalize-program (hd (tl Parsed)))
+          [program []]))
+  _ -> [program []])
+
 (define sl-run
   -> (let Results
          [(sl-check "factorial-surface"
@@ -82,6 +105,78 @@
           (sl-check "factorial-tsl"
                     (= (sl-render "examples/factorial.shen" "tsl")
                        (sl-read "tests/golden/factorial.tsl.logic")))
+          (sl-check "repair-factorial-edited-equation"
+                    (let R (sl-repair-factorial
+                              "tests/fixtures/repair-factorial.spec" 4)
+                      (and (= (hd R) ok)
+                           (= (hd (tl R)) factorial)
+                           (= (hd (tl (tl R))) 1)
+                           (= (evaluator-evaluate (sl-repair-program R)
+                                [factorial 1] 2000)
+                              [value 2]))))
+          (sl-check "repair-respects-max-cost"
+                    (= (sl-repair-factorial
+                         "tests/fixtures/repair-factorial.spec" 0)
+                       [error repair-no-candidate]))
+          (sl-check "repair-rejects-example-mismatch"
+                    (= (sl-repair-factorial
+                         "tests/fixtures/repair-factorial-bad.spec" 4)
+                       [error repair-no-candidate]))
+          (sl-check "repair-whole-definition-edit"
+                    (let R (sl-repair-ordered)
+                      (and (= (hd R) ok)
+                           (= (hd (tl (tl (tl R))))
+                              (sl-read
+                                "tests/fixtures/repair-ordered.expected.shen")))))
+          (sl-check "repair-preserves-declared-signature-style"
+                    (let R (shenlogic.repair-file
+                              "tests/fixtures/declared.shen"
+                              "tests/fixtures/repair-declared.tsl.logic"
+                              "tests/fixtures/repair-declared.spec"
+                              2000 100 10)
+                      (and (= (hd R) ok)
+                           (= (hd (tl (tl (tl R))))
+                              (sl-read
+                                "tests/fixtures/repair-declared.expected.shen")))))
+          (sl-check "repair-preserves-wildcard-patterns"
+                    (let R (shenlogic.repair-file
+                              "examples/tsl-values.shen"
+                              "tests/fixtures/repair-wildcard.tsl.logic"
+                              "tests/fixtures/repair-wildcard.spec"
+                              2000 100 10)
+                      (and (= (hd R) ok)
+                           (= (hd (tl (tl (tl R))))
+                              (sl-read
+                                "tests/fixtures/repair-wildcard.expected.shen")))))
+          (sl-check "repair-rejects-law-without-solver"
+                    (= (sl-repair-factorial
+                         "tests/fixtures/repair-factorial-law.spec" 4)
+                       [error repair-law-solver-required]))
+          (sl-check "repair-prepares-quantified-law"
+                    (let R (shenlogic.repair-prepare-file
+                              "examples/factorial.shen"
+                              "tests/fixtures/repair-factorial.tsl.logic"
+                              "tests/fixtures/repair-factorial-law-true.spec"
+                              2000 100 4)
+                      (and (= (hd R) ok)
+                           (not (= (sl-repair-query R) "")))))
+          (sl-check "repair-ranked-candidates-exhaust"
+                    (= (shenlogic.repair-prepare-file-nth
+                         "examples/factorial.shen"
+                         "tests/fixtures/repair-factorial.tsl.logic"
+                         "tests/fixtures/repair-factorial.spec"
+                         2000 100 4 1)
+                       [error repair-no-candidate]))
+          (sl-check "repair-rejects-noop-logic"
+                    (= (shenlogic.repair-file "examples/factorial.shen"
+                         "tests/golden/factorial.tsl.logic"
+                         "tests/fixtures/repair-factorial.spec" 2000 100 4)
+                       [error repair-no-equation-change]))
+          (sl-check "repair-rejects-scaffolding-edit"
+                    (= (shenlogic.repair-file "examples/factorial.shen"
+                         "tests/fixtures/repair-factorial-scaffold.tsl.logic"
+                         "tests/fixtures/repair-factorial.spec" 2000 100 4)
+                       [error repair-edited-scaffolding]))
           (sl-check "tsl-rejects-missing-signature"
                     (sl-translation-rejected?
                       "tests/fixtures/tsl-no-signature.shen" "tsl"))

@@ -1,0 +1,19 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: box-name unknown (non-exhaustive clauses in box-name)
+
+; constructor axioms
+(all X0 : value (all Y0 : value (((box X0) = (box Y0)) => (X0 = Y0))))
+(all X0 : value (all X1 : value (all Y0 : value (all Y1 : value (((pair X0 X1) = (pair Y0 Y1)) => (and (X0 = Y0) (X1 = Y1)))))))
+(all X0 : value (all Y0 : value (all Y1 : value (~ ((box X0) = (pair Y0 Y1))))))
+(all P : (value => o) ((and (all X0 : value ((P X0) => (P (box X0)))) (all X0 : value (all X1 : value ((and (P X0) (P X1)) => (P (pair X0 X1)))))) => (all V : value (P V))))
+
+; definedness: box-name
+(all W0 : value (defined-box-name (box W0)))
+(all W0 : value (all W1 : value (defined-box-name (pair W0 W1))))
+(all A0 : value ((defined-box-name A0) => (or (some W0 : value (A0 = (box W0))) (and (~ (some W0 : value (A0 = (box W0)))) (some W0 : value (some W1 : value (A0 = (pair W0 W1))))))))
+(all P : (value => o) ((and (all W0 : value (P (box W0))) (all W0 : value (all W1 : value (P (pair W0 W1))))) => (all A0 : value ((defined-box-name A0) => (P A0)))))
+
+; equations
+(all W0 : value ((box-name (box W0)) = boxed-again))
+(all W0 : value (all W1 : value ((box-name (pair W0 W1)) = paired)))

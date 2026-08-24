@@ -14,6 +14,7 @@
 (load "shen/typing.shen")
 (load "shen/termination.shen")
 (load "shen/tsl.shen")
+(load "shen/repair.shen")
 (load "shen/workflow.shen")
 
 (define shenlogic.version
@@ -61,3 +62,40 @@
   File Expr Fuel -> (let Program (shenlogic.program File)
                          Expression (hd (read-from-string-unprocessed Expr))
                          (evaluator-evaluate Program Expression Fuel)))
+
+\\ Public repair API.  The edited logic and repair contract remain separate
+\\ files so callers can retain the exact artifacts used to produce a patch.
+(define shenlogic.repair-file
+  File LogicFile SpecFile Fuel MaxCandidates MaxCost ->
+    (repair.result File (read-file-as-string LogicFile)
+      (read-file-as-string SpecFile) Fuel MaxCandidates MaxCost))
+
+\\ Preparation is the pure half of law checking.  It returns the same patch
+\\ plus a self-contained CHC query for an external Z3 process.  The wrapper
+\\ commits the source only after that query is unsatisfiable.
+(define shenlogic.repair-prepare-file
+  File LogicFile SpecFile Fuel MaxCandidates MaxCost ->
+    (shenlogic.repair-prepare-file-nth File LogicFile SpecFile Fuel
+      MaxCandidates MaxCost 0))
+
+(define shenlogic.repair-prepare-file-nth
+  File LogicFile SpecFile Fuel MaxCandidates MaxCost Rank ->
+    (let SpecText (read-file-as-string SpecFile)
+      (let Result (repair.prepare-result-nth File (read-file-as-string LogicFile)
+                     SpecText Fuel MaxCandidates MaxCost Rank)
+        (if (= (hd Result) ok)
+            (shenlogic.repair-prepared Result SpecText)
+            Result))))
+
+(define shenlogic.repair-prepared
+  [ok Name Cost Source Diff] SpecText ->
+    (let Parsed (repair.source-text-program Source)
+      (if (= (hd Parsed) ok)
+          (let Specs (repair.constraints SpecText)
+            (if (= (hd Specs) ok)
+                (let Query (repair.law-query (hd (tl Parsed)) (hd (tl Specs)))
+                  (if (= (hd Query) ok)
+                      [ok Name Cost Source Diff (hd (tl Query))]
+                      Query))
+                Specs))
+          Parsed)))
