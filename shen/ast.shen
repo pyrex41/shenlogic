@@ -165,6 +165,11 @@
   [or A B] Names Constructors ->
     [e-or (shenlogic.ast.normalize-expr A Names Constructors)
           (shenlogic.ast.normalize-expr B Names Constructors)]
+  \\ cons is a builtin constructor in expressions as well as patterns; the
+  \\ pattern-led constructor environment must not decide it.
+  [cons A B] Names Constructors ->
+    [e-ctor cons [(shenlogic.ast.normalize-expr A Names Constructors)
+                  (shenlogic.ast.normalize-expr B Names Constructors)]]
   [Op | Args] Names Constructors ->
     (if (variable? Op)
         [e-apply Op (shenlogic.ast.normalize-pattern-list-expr Args Names Constructors)]

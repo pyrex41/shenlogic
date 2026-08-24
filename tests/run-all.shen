@@ -149,6 +149,36 @@
           (sl-check "map-tsl"
                     (= (sl-render "examples/v2-map.shen" "tsl")
                        (sl-read "tests/golden/map.tsl.logic")))
+          (sl-check "tsl-regress-tsl"
+                    (= (sl-render "examples/tsl-regress.shen" "tsl")
+                       (sl-read "tests/golden/tsl-regress.tsl.logic")))
+          (sl-check "term-nonlinear-unknown"
+                    (= (termination.classify
+                         (shenlogic.program "tests/fixtures/term-nonlinear.shen"))
+                       [totality [[part unknown [non-exhaustive part]]
+                                  [h2 unknown [non-exhaustive h2]]]]))
+          (sl-check "term-shadow-unknown"
+                    (= (termination.classify
+                         (shenlogic.program "tests/fixtures/term-shadow.shen"))
+                       [totality [[spin unknown [no-descent]]
+                                  [grow unknown [no-descent]]]]))
+          (sl-check "reject-name-collision-chc"
+                    (sl-translation-rejected?
+                      "tests/fixtures/name-collide.shen" "chc"))
+          (sl-check "reject-name-collision-thf"
+                    (sl-translation-rejected?
+                      "tests/fixtures/name-collide.shen" "thf"))
+          (sl-check "reject-apply-name-collision-chc"
+                    (sl-translation-rejected?
+                      "tests/fixtures/name-collide-apply.shen" "chc"))
+          (sl-check "body-cons-eval"
+                    (= (sl-eval "tests/fixtures/body-cons.shen" "(wrap 5)")
+                       [value [5]]))
+          (sl-check "body-cons-chc"
+                    (sl-translation-succeeds?
+                      "tests/fixtures/body-cons.shen" "chc"))
+          (sl-check "reject-ho-guard-escape"
+                    (sl-rejected? "tests/fixtures/ho-guard-escape.shen"))
           (sl-check "map-query-chc"
                     (= (hd (shenlogic.query-file "examples/v2-map.shen"
                              "(map double [1 2])" "[2 4]" "chc"))

@@ -3,10 +3,13 @@
 (define shenlogic.thf.render
   [theory [value-signature Constructors] Relations Rules SCCs NameMap] Profile ->
     (let Names (shenlogic.thf.v2-namemap-entries NameMap)
-      (if (shenlogic.thf.v2-valid? Constructors Relations Rules SCCs Names)
-        [ok (shenlogic.thf.v2-output Constructors Relations Rules SCCs Names)]
-        [error invalid-thf-ir])
-      )
+      (let Clash (shenlogic.thf.name-clash Constructors Relations Rules Names)
+        (if (not (= Clash none))
+            [error thf-name-collision (tl Clash)]
+            (if (shenlogic.thf.v2-valid? Constructors Relations Rules SCCs Names)
+                [ok (shenlogic.thf.v2-output Constructors Relations Rules SCCs
+                      Names)]
+                [error invalid-thf-ir]))))
   [theory Declarations Rules SCCs] _ ->
     (if (shenlogic.thf.supported? Rules)
         [ok (@s "% ShenLogic typed higher-order specification" (n->string 10)
@@ -15,6 +18,32 @@
                 (shenlogic.thf.leastness SCCs Rules Declarations))]
         [error unsupported-thf])
   _ _ -> [error invalid-theory])
+
+\\ TPTP name cleaning is not injective; distinct relations, constructors,
+\\ or literals must not merge into one TPTP atom (a literal merge even
+\\ yields a self-contradictory distinctness axiom).  Reject collisions.
+(define shenlogic.thf.name-clash
+  Constructors Relations Rules Map ->
+    (shenlogic.chc.clash-scan
+      (append
+        (map (/. R (shenlogic.thf.rel-pair R Map)) Relations)
+        (append
+          (map (/. C (shenlogic.thf.ctor-pair C Map)) Constructors)
+          (map (/. L (shenlogic.thf.literal-pair L))
+               (shenlogic.thf.v2-literals Rules []))))
+      []))
+
+(define shenlogic.thf.rel-pair
+  [relation Name _ _] Map ->
+    [(@s "r " (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Name Map))) Name])
+
+(define shenlogic.thf.ctor-pair
+  [constructor _ Target _] Map ->
+    [(@s "c " (shenlogic.thf.v2-safe (shenlogic.thf.v2-name Target Map)))
+     Target])
+
+(define shenlogic.thf.literal-pair
+  [Kind S] -> [(@s (str Kind) " " (shenlogic.thf.v2-safe S)) S])
 
 (define shenlogic.thf.supported?
   [] -> true

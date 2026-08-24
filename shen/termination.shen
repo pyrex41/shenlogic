@@ -139,8 +139,20 @@
 (define termination.catch-all?
   [] -> false
   [[clause _ Ps none _] | Cs] ->
-    (if (termination.all-vars? Ps) true (termination.catch-all? Cs))
+    (if (termination.general-row? Ps) true (termination.catch-all? Cs))
   [_ | Cs] -> (termination.catch-all? Cs))
+
+\\ A row is fully general only when every pattern is a variable or wildcard
+\\ AND no variable repeats: a repeated variable is an equality constraint
+\\ (the evaluator can fail it), not a wildcard.
+(define termination.general-row?
+  Ps -> (if (termination.all-vars? Ps)
+            (termination.linear? (tsl.patterns-vars Ps))
+            false))
+
+(define termination.linear?
+  [] -> true
+  [V | Vs] -> (if (element? V Vs) false (termination.linear? Vs)))
 
 (define termination.all-vars?
   [] -> true
@@ -172,7 +184,8 @@
   [] _ _ -> false
   [[clause _ Ps none _] | Cs] I Want ->
     (if (and (termination.covers? (termination.nth Ps I) Want)
-             (termination.all-vars? (termination.except Ps I)))
+             (and (termination.all-vars? (termination.except Ps I))
+                  (termination.linear? (tsl.patterns-vars Ps))))
         true
         (termination.clause-covering? Cs I Want))
   [_ | Cs] I Want -> (termination.clause-covering? Cs I Want))
@@ -212,12 +225,21 @@
   [X | Xs] -> (if (element? X Xs) (termination.unique Xs)
                   [X | (termination.unique Xs)]))
 
+\\ Descent is judged on let-resolved argument expressions (a let can rebind
+\\ a pattern variable to a larger value), but a binding whose variable is
+\\ dropped still contributes its call sites: let is strict.
 (define termination.clauses-sites
   [] -> []
   [[clause _ Ps G B] | Cs] ->
-    (append (termination.sites Ps G (append (termination.guard-expr-list G)
-                                            [B]))
-            (termination.clauses-sites Cs)))
+    (let IG (termination.inline-guard G)
+      (append (termination.sites Ps IG
+                (append (termination.guard-expr-list G) [B]))
+              (termination.clauses-sites Cs))))
+
+(define termination.inline-guard
+  none -> none
+  [some G] -> [some (tsl.inline G)]
+  G -> [some (tsl.inline G)])
 
 (define termination.guard-expr-list
   none -> []
@@ -235,7 +257,10 @@
   Ps G [e-ctor _ Args] -> (termination.sites Ps G Args)
   Ps G [e-prim _ Args] -> (termination.sites Ps G Args)
   Ps G [e-if C T F] -> (termination.sites Ps G [C T F])
-  Ps G [e-let _ A B] -> (termination.sites Ps G [A B])
+  Ps G [e-let X A B] ->
+    (append (termination.expr-sites Ps G A)
+            (termination.expr-sites Ps G
+              (tsl.subst-expr B [[X (tsl.inline A)]])))
   Ps G [e-and A B] -> (termination.sites Ps G [A B])
   Ps G [e-or A B] -> (termination.sites Ps G [A B])
   _ _ _ -> [])

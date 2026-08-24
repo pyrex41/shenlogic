@@ -1,0 +1,41 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: exl total (non-recursive)
+; totality: loop unknown (no descent measure found)
+; totality: drops unknown (depends on loop)
+; totality: pick unknown (depends on loop)
+; totality: wv total (non-recursive)
+; totality: sh total (non-recursive)
+
+; list axioms
+(all A : type (all X : A (all Y : (list A) (all Z : A (all W : (list A) (((cons X Y) = (cons Z W)) => (and (X = Z) (Y = W))))))))
+(all A : type (all X : A (all Y : (list A) (~ ((cons X Y) = ())))))
+(all A : type (all P : ((list A) => o) ((and (P ()) (all X : A (all Y : (list A) ((P Y) => (P (cons X Y)))))) => (all L : (list A) (P L)))))
+; boolean bridge axioms
+(all X : number (all Y : number ((< X Y) => ((< X Y) = true))))
+(all X : number (all Y : number ((~ (< X Y)) => ((< X Y) = false))))
+; conditional axioms
+(all A : type (all X : A (all Y : A ((if true X Y) = X))))
+(all A : type (all X : A (all Y : A ((if false X Y) = Y))))
+
+; definedness: loop
+(all X : number ((defined-loop X) => (defined-loop X)))
+(all X : number ((defined-loop X) => (defined-loop X)))
+(all P : (number => o) ((all X : number ((P X) => (P X))) => (all X : number ((defined-loop X) => (P X)))))
+; definedness: drops
+(all X : number ((defined-loop X) => (defined-drops X)))
+(all X : number ((defined-drops X) => (defined-loop X)))
+(all P : (number => o) ((all X : number ((defined-loop X) => (P X))) => (all X : number ((defined-drops X) => (P X)))))
+; definedness: pick
+(all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => (defined-pick X)))
+(all X : number ((defined-pick X) => (and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0))))))
+(all P : (number => o) ((all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => (P X))) => (all X : number ((defined-pick X) => (P X)))))
+
+; equations
+(all E0 : number (all R : (list number) (all Y : number ((> E0 Y) => ((exl (cons E0 R) Y) = 1)))))
+(all L : (list number) (all E0 : number ((~ (some E1 : number (some R : (list number) (and (L = (cons E1 R)) (> E1 E0))))) => ((exl L E0) = 2))))
+(all X : number ((defined-loop X) => ((loop X) = (loop X))))
+(all X : number ((defined-loop X) => ((drops X) = 5)))
+(all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => ((pick X) = (if (< X 0) (loop X) 7))))
+(all W0 : type (all W1 : W0 ((wv W1) = 7)))
+(all A : type (all E0 : A ((sh E0) = 7)))

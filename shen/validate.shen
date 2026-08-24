@@ -159,7 +159,7 @@
         (if (= (length Patterns) Arity) [] [[sl-v002 Name I]])
         (append (shenlogic.validate.patterns Patterns)
           (append (hd (tl (tl FE)))
-            (append (shenlogic.validate.guard Guard Names)
+            (append (shenlogic.validate.guard-env Guard (hd (tl FE)))
               (append (shenlogic.validate.expr-env Body Names Constructors
                         (hd (tl FE)) Table)
                 (shenlogic.validate.clauses-env Cs Arity Names Constructors
@@ -357,6 +357,37 @@
            (if (cons? P)
                (shenlogic.validate.patterns P)
                [])))
+
+\\ Guards stay pure (no user calls at any depth) and must not leak
+\\ function-typed parameters into operand positions.
+(define shenlogic.validate.guard-env
+  none _ -> []
+  [some G] FnEnv -> (shenlogic.validate.guard-walk G FnEnv)
+  G FnEnv -> (shenlogic.validate.guard-walk G FnEnv))
+
+(define shenlogic.validate.guard-walk
+  E FnEnv ->
+    (if (cons? E)
+        (append
+          (if (cons? (hd E)) [[sl-v022 higher-order-callee (hd E)]] [])
+          (append
+            (if (and (symbol? (hd E))
+                     (not (element? (hd E) [if let and or = + - * < > <= >= cons])))
+                [[sl-v023 guard-user-call (hd E)]] [])
+            (append
+              (shenlogic.validate.application-arity (hd E) (tl E))
+              (shenlogic.validate.guard-walk-list (tl E) FnEnv))))
+        (if (number? E)
+            (if (integer? E) [] [[sl-v010 E]])
+            (if (and (variable? E)
+                     (not (= (shenlogic.validate.fn-arity E FnEnv) none)))
+                [[sl-v047 function-value-escape E]]
+                []))))
+
+(define shenlogic.validate.guard-walk-list
+  [] _ -> []
+  [E | Es] FnEnv -> (append (shenlogic.validate.guard-walk E FnEnv)
+                            (shenlogic.validate.guard-walk-list Es FnEnv)))
 
 (define shenlogic.validate.guard
   none _ -> []

@@ -40,12 +40,12 @@
             (let Bad (tsl.first-illformed [IResult | IArgs])
               (if (not (= Bad none))
                   [error [sl-t005 tsl-unsupported Name [type (hd (tl Bad))]]]
-                  (let TCs (tsl.type-clauses Name Clauses IArgs IResult
-                             Table [])
-                    (if (tsl.ok? TCs)
-                        [ok [t-def Name (tsl.tvars-list IArgs [IResult])
-                             IArgs IResult (hd (tl TCs))]]
-                        TCs)))))))
+                  (let TVars (tsl.tvars-list IArgs [IResult])
+                    (let TCs (tsl.type-clauses Name Clauses IArgs IResult
+                               Table TVars [])
+                      (if (tsl.ok? TCs)
+                          [ok [t-def Name TVars IArgs IResult (hd (tl TCs))]]
+                          TCs))))))))
   [definition Name _ _ _] _ -> [error [sl-t001 tsl-signature-required Name]])
 
 \\ Rank-1 only: an argument may itself be an arrow type, but no arrow may
@@ -137,17 +137,22 @@
   [T | Ts] Acc -> (tsl.tvars-types Ts (tsl.tvars-type T Acc)))
 
 (define tsl.type-clauses
-  _ [] _ _ _ Acc -> [ok (reverse Acc)]
-  Name [C | Cs] Args Result Table Acc ->
-    (let R (tsl.type-clause Name C Args Result Table)
+  _ [] _ _ _ _ Acc -> [ok (reverse Acc)]
+  Name [C | Cs] Args Result Table TVars Acc ->
+    (let R (tsl.type-clause Name C Args Result Table TVars)
       (if (tsl.ok? R)
-          (tsl.type-clauses Name Cs Args Result Table [(hd (tl R)) | Acc])
+          (tsl.type-clauses Name Cs Args Result Table TVars
+            [(hd (tl R)) | Acc])
           R)))
 
+\\ Term variables (including freshened wildcards) are kept disjoint from
+\\ the signature's type variables: the emitted binder syntax shares one
+\\ namespace, so a collision would shadow a type variable at term kind.
 (define tsl.type-clause
-  Name [clause Index Patterns Guard Body] Args Result Table ->
-    (let Used (append (tsl.patterns-vars Patterns)
-                (append (tsl.guard-vars Guard) (tsl.expr-vars Body)))
+  Name [clause Index Patterns Guard Body] Args Result Table TVars ->
+    (let Used (append TVars
+                (append (tsl.patterns-vars Patterns)
+                  (append (tsl.guard-vars Guard) (tsl.expr-vars Body))))
       (let FP (tsl.freshen-list Patterns Used 0)
         (let Ctx [Name Index]
           (let RP (tsl.type-patterns (hd FP) Args [] [] 0 Ctx)
@@ -159,8 +164,11 @@
                         (let RB (tsl.type-check Body Result Env Table
                                   (hd (tl RG)) (hd (tl (tl RG))) Ctx)
                           (if (tsl.ok? RB)
-                              [ok [t-clause Index (hd FP) Guard Body
-                                   (tsl.resolve-env (reverse Env) (hd (tl RB)))]]
+                              [ok (tsl.alpha-prior
+                                    [t-clause Index (hd FP) Guard Body
+                                     (tsl.resolve-env (reverse Env)
+                                       (hd (tl RB)))]
+                                    TVars)]
                               RB))
                         RG)))
                 RP))))))
@@ -339,7 +347,7 @@
       (if (= TF not-found)
           [error [sl-t005 tsl-unsupported (hd Ctx) [unbound F]]]
           (let RT (tsl.resolve (hd (tl TF)) Subst)
-            (if (= (hd RT) arrow)
+            (if (if (cons? RT) (= (hd RT) arrow) false)
                 (if (= (length Args) (length (hd (tl RT))))
                     (let R (tsl.type-checks Args (hd (tl RT)) Env Table
                              Subst Counter Ctx)
@@ -409,7 +417,10 @@
                       (let RB (tsl.type-check B (hd (tl RA)) Env Table
                                 (hd (tl (tl RA))) (hd (tl (tl (tl RA)))) Ctx)
                         (if (tsl.ok? RB)
-                            [ok boolean (hd (tl RB)) (hd (tl (tl RB)))]
+                            (if (tsl.arrow-expected? (hd (tl RA)) (hd (tl RB)))
+                                [error [sl-t005 tsl-unsupported (hd Ctx)
+                                        [function-equality Op]]]
+                                [ok boolean (hd (tl RB)) (hd (tl (tl RB)))])
                             RB))
                       RA))
                 [error [sl-t005 tsl-unsupported (hd Ctx) [primitive Op]]])))

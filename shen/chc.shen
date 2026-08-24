@@ -3,9 +3,12 @@
 (define shenlogic.chc.render
   [theory [value-signature Constructors] Relations Rules SCCs NameMap] Profile ->
     (if (element? Profile [linear nonlinear])
-        (if (shenlogic.chc.v2-supported? Constructors Relations Rules SCCs NameMap)
-            [ok (shenlogic.chc.v2-artifact Constructors Relations Rules SCCs NameMap)]
-            [error unsupported-chc-v2])
+        (let Clash (shenlogic.chc.name-clash Relations NameMap)
+          (if (not (= Clash none))
+              [error chc-name-collision (tl Clash)]
+              (if (shenlogic.chc.v2-supported? Constructors Relations Rules SCCs NameMap)
+                  [ok (shenlogic.chc.v2-artifact Constructors Relations Rules SCCs NameMap)]
+                  [error unsupported-chc-v2])))
         [error invalid-profile Profile])
   [theory Declarations Rules SCCs] Profile ->
     (if (element? Profile [linear nonlinear])
@@ -443,6 +446,33 @@
   "+" -> "_add"
   " " -> "_"
   C -> C)
+
+\\ Character cleaning is not injective ('-', '.', and ' ' all become '_'),
+\\ so distinct source names could silently merge into one SMT relation.
+\\ Reject such programs instead.
+(define shenlogic.chc.name-clash
+  Relations NameMap ->
+    (shenlogic.chc.clash-scan
+      (map (/. R (shenlogic.chc.rel-pair R NameMap)) Relations) []))
+
+(define shenlogic.chc.rel-pair
+  [relation Name _ _] NameMap ->
+    [(shenlogic.chc.v2-relation-name Name NameMap) Name])
+
+(define shenlogic.chc.clash-scan
+  [] _ -> none
+  [[C S] | Ps] Seen ->
+    (let F (shenlogic.chc.clash-find C S Seen)
+      (if (= F none)
+          (shenlogic.chc.clash-scan Ps [[C S] | Seen])
+          F)))
+
+(define shenlogic.chc.clash-find
+  _ _ [] -> none
+  C S [[C2 S2] | Rest] ->
+    (if (and (= C C2) (not (= S S2)))
+        [found S2 S]
+        (shenlogic.chc.clash-find C S Rest)))
 
 (define shenlogic.chc.v2-relation-name
   Name [name-map Pairs] ->

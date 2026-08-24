@@ -22,7 +22,7 @@
 \\ Stable orchestration API used by the command line and external callers.
 (define shenlogic.unwrap
   [ok X] -> X
-  [error E] -> (error E)
+  [error E] -> (error (if (string? E) E (serialize.canonical E)))
   [error E Context] -> (error (@s (str E) ": " (serialize.canonical Context)))
   [errors Es] -> (error (serialize.canonical Es))
   X -> X)

@@ -13,6 +13,9 @@
 ; boolean axioms
 (~ (true = false))
 (all B : boolean (or (B = true) (B = false)))
+; boolean bridge axioms
+(all X : number (all Y : number ((> X Y) => ((> X Y) = true))))
+(all X : number (all Y : number ((~ (> X Y)) => ((> X Y) = false))))
 ; conditional axioms
 (all A : type (all X : A (all Y : A ((if true X Y) = X))))
 (all A : type (all X : A (all Y : A ((if false X Y) = Y))))

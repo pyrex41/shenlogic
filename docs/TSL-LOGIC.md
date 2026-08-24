@@ -22,7 +22,14 @@ Types:
 Terms: variables; integer, string, symbol, and boolean literals; `()`;
 `(cons t u)`; user constructor applications; function applications
 `(f t1 ... tn)`; arithmetic terms `(+ - *)`; conditional terms
-`(if c t u)`.
+`(if c t u)`; and boolean-sorted term formers `(< > <= >= = neq and or)`.
+The comparison, equality, and connective spellings are overloaded: in a
+condition position they are formulas, in a value position they are terms
+of sort `boolean`. Whenever a program uses one as a term, the output
+includes bridge axioms tying the term to its formula reading (e.g.
+`(all X : number (all Y : number ((< X Y) => ((< X Y) = true))))` and its
+negative twin), so equations like `((positive? X) = (> X 0))` have
+derivational force.
 
 Formulas: `true`, `false`, `(t = u)`, integer comparisons
 `(< > <= >=)`, `defined-f` atoms, predicate-variable applications,
@@ -137,10 +144,17 @@ that would discharge it are tracked in `docs/PROOF-OBLIGATIONS.md`.
 
 A variable of function type may be applied — `((F X) = ...)` renders
 application directly, and `(all F : (A --> B) ...)` quantifies over the
-function space of the model. Each applied arity `N` introduces a
-predicate `defined-apply-N` with the intended reading
-`exists r. sl.apply-N(F, x̄, r)` against the defunctionalized graph
-theory (`docs/SEMANTICS.md`). The emitted axioms constrain it on named
+function space of the model. Each applied arity `N` introduces
+`defined-apply-N`, read as a type-indexed schema — one predicate per
+instantiation of `forall A1..AN, B. (A1 --> ... --> B) => A1 => ... =>
+AN => o` — rather than a single monomorphic predicate constant; its
+occurrences at different arrow sorts are instances of that scheme. The
+intended reading of each instance is `exists r. sl.apply-N(F, x̄, r)`
+against the defunctionalized graph theory (`docs/SEMANTICS.md`).
+Equality between function-sorted terms is rejected by the typing pass
+(`sl-t005 function-equality`): the graph theory's function values are
+names (intensional), while the typed model's function space is
+extensional, and equating them would let the two readings diverge. The emitted axioms constrain it on named
 functions: total functions are defined-apply everywhere; unknown
 functions satisfy `(defined-f x̄) <=> (defined-apply-N f x̄)`. Every
 application site in a body contributes a `defined-apply-N` obligation to
