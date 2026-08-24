@@ -290,6 +290,23 @@
                                  [])
                        [f-or [[f-cmp < [e-var vx] [e-value 0]]
                               [f-defined d [[e-var vx]]]]]))
+          (sl-check "simp-unit-linarith-equal"
+                    (= (tsl.simp [f-cmp < [e-prim + [[e-var vx] [e-value 0]]]
+                                  [e-value 2]]
+                                 [[f-cmp < [e-var vx] [e-value 2]]])
+                       [f-true]))
+          (sl-check "simp-unit-swapped-spelling"
+                    (= (tsl.simp [f-cmp > [e-value 2] [e-var vx]]
+                                 [[f-cmp < [e-var vx] [e-value 2]]])
+                       [f-true]))
+          (sl-check "simp-unit-trichotomy"
+                    (= (tsl.simp [f-cmp >= [e-var vx] [e-value 0]]
+                                 [[f-cmp < [e-var vx] [e-value 0]]])
+                       [f-false]))
+          (sl-check "simp-unit-linarith-fail-closed"
+                    (= (tsl.simp [f-cmp < [e-var vx] [e-value 2]]
+                                 [[f-cmp < [e-var vx] [e-value 3]]])
+                       [f-cmp < [e-var vx] [e-value 2]]))
           (sl-check "simp-unit-idempotent"
                     (let Once (tsl.simp [f-and [[f-defined d [[e-var vx]]]
                                                 [f-or [[f-cmp < [e-var vx]

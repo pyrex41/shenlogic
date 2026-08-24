@@ -738,6 +738,72 @@
   [f-not F] -> F
   F -> [f-not F])
 
+\\ Atom comparison modulo the linear-arithmetic background theory,
+\\ checker-side only: printed formulas are never rewritten.  A comparison
+\\ is keyed by the canonical form of its difference, normalized to strict
+\\ (d < 0) or non-strict (d <= 0); two spellings with equal keys denote
+\\ the same relation (LIA), and [lt D] is the exact complement of
+\\ [le -D] by the total order on the integers.  Numeric equalities
+\\ compare by difference form up to sign (symmetry of =).  Any operand
+\\ without a linear form falls back to structural comparison: fail
+\\ closed.
+
+(define tsl.cmp-key
+  [f-cmp < A B] -> (tsl.key-tag lt (linarith.form [e-prim - [A B]]))
+  [f-cmp > A B] -> (tsl.key-tag lt (linarith.form [e-prim - [B A]]))
+  [f-cmp <= A B] -> (tsl.key-tag le (linarith.form [e-prim - [A B]]))
+  [f-cmp >= A B] -> (tsl.key-tag le (linarith.form [e-prim - [B A]]))
+  _ -> none)
+
+(define tsl.key-tag
+  _ none -> none
+  Tag D -> [Tag D])
+
+(define tsl.eq-key
+  [f-eq A B] -> (linarith.form [e-prim - [A B]])
+  _ -> none)
+
+(define tsl.atom-equal?
+  F F -> true
+  [f-not F] [f-not G] -> (tsl.atom-equal? F G)
+  F G -> (let KF (tsl.cmp-key F)
+           (if (not (= KF none))
+               (= KF (tsl.cmp-key G))
+               (let DF (tsl.eq-key F)
+                 (if (= DF none)
+                     false
+                     (let DG (tsl.eq-key G)
+                       (if (= DG none)
+                           false
+                           (or (= DF DG)
+                               (= DF (linarith.scale -1 DG))))))))))
+
+(define tsl.atom-complement?
+  [f-not F] G -> (tsl.atom-equal? F G)
+  F [f-not G] -> (tsl.atom-equal? F G)
+  F G -> (let KF (tsl.cmp-key F)
+           (if (= KF none)
+               false
+               (let KG (tsl.cmp-key G)
+                 (if (= KG none)
+                     false
+                     (tsl.trichotomy? KF KG))))))
+
+(define tsl.trichotomy?
+  [lt D] [le E] -> (= E (linarith.scale -1 D))
+  [le D] [lt E] -> (= E (linarith.scale -1 D))
+  _ _ -> false)
+
+(define tsl.member-atom?
+  _ [] -> false
+  F [G | Gs] -> (if (tsl.atom-equal? F G) true (tsl.member-atom? F Gs)))
+
+(define tsl.refuted-atom?
+  _ [] -> false
+  F [G | Gs] -> (if (tsl.atom-complement? F G)
+                    true
+                    (tsl.refuted-atom? F Gs)))
+
 (define tsl.simp
   [f-and Fs] Ctx -> (tsl.rebuild-and (tsl.simp-conjuncts Fs Ctx []))
   [f-or Fs] Ctx -> (tsl.rebuild-or (tsl.simp-disjuncts Fs Ctx []))
@@ -747,9 +813,9 @@
   [f-some Bs F] Ctx -> [f-some Bs (tsl.simp F (tsl.ctx-drop Bs Ctx))]
   [f-all Bs F] Ctx -> [f-all Bs (tsl.simp F (tsl.ctx-drop Bs Ctx))]
   [f-all-types Vs F] Ctx -> [f-all-types Vs (tsl.simp F Ctx)]
-  F Ctx -> (if (element? F Ctx)
+  F Ctx -> (if (tsl.member-atom? F Ctx)
                [f-true]
-               (if (element? (tsl.neg F) Ctx) [f-false] F)))
+               (if (tsl.refuted-atom? F Ctx) [f-false] F)))
 
 (define tsl.simp-not
   [f-not G] -> G
@@ -783,9 +849,9 @@
           (if (cons? (tsl.and-members F1))
               (tsl.simp-conjuncts (append (tsl.and-members F1) Fs) Ctx Acc)
               (if (or (= F1 [f-false])
-                      (element? (tsl.neg F1) (append Ctx (reverse Acc))))
+                      (tsl.refuted-atom? F1 (append Ctx (reverse Acc))))
                   [[f-false]]
-                  (if (element? F1 (append Ctx (reverse Acc)))
+                  (if (tsl.member-atom? F1 (append Ctx (reverse Acc)))
                       (tsl.simp-conjuncts Fs Ctx Acc)
                       (tsl.simp-conjuncts Fs Ctx [F1 | Acc])))))))
 
@@ -802,13 +868,13 @@
   [F | Fs] Ctx Acc ->
     (let Ctx1 (append Ctx (map (/. G (tsl.neg G)) (reverse Acc)))
       (let F1 (tsl.simp F Ctx1)
-        (if (or (= F1 [f-false]) (element? (tsl.neg F1) Ctx1))
+        (if (or (= F1 [f-false]) (tsl.refuted-atom? F1 Ctx1))
             (tsl.simp-disjuncts Fs Ctx Acc)
             (if (cons? (tsl.or-members F1))
                 (tsl.simp-disjuncts (append (tsl.or-members F1) Fs) Ctx Acc)
-                (if (or (= F1 [f-true]) (element? F1 Ctx1))
+                (if (or (= F1 [f-true]) (tsl.member-atom? F1 Ctx1))
                     [[f-true]]
-                    (if (element? F1 (reverse Acc))
+                    (if (tsl.member-atom? F1 (reverse Acc))
                         (tsl.simp-disjuncts Fs Ctx Acc)
                         (tsl.simp-disjuncts Fs Ctx [F1 | Acc]))))))))
 
