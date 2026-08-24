@@ -114,6 +114,25 @@ binders, exclusion or guard conjuncts, or any term; determinism comes
 from a fixed left-to-right strategy over lists, so output remains
 byte-identical across Shen hosts.
 
+The entailment checker compares number-sorted atoms modulo canonical
+linear forms (`shen/linarith.shen`): a comparison is keyed by the
+canonical form of its difference, so differently spelled comparisons of
+one relation are recognized as equal, and strict-versus-non-strict
+pairs over negated differences as complementary, by the total order on
+the integers. The termination classifier's integer measure uses the
+same normalization: any step expression whose canonical form is
+`V + K` qualifies, descending (`K < 0`, guard-derived lower bound) or
+ascending (`K > 0`, upper bound), with one direction per argument
+position. This is the boundary for rewriting machinery in general:
+canonicalization is admissible checker-side when confined to the
+declared decidable background theory, or downstream of an independent
+verifier (as in `repair`); it is never applied to the printed formulas
+themselves. A canonical-form deduplication of repair's guard
+candidates was considered and rejected: repair must regenerate the
+edited equations byte-exactly, and dropping a differently spelled but
+equivalent guard candidate can remove the only spelling that
+forward-renders to the edited view.
+
 ## Partiality discipline
 
 A classical equation between terms asserts denotation; an unguarded
