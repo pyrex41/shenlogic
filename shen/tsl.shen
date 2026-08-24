@@ -1,0 +1,903 @@
+\\ tsl: typed second-order equational output in the shen2logic style.
+\\
+\\ Consumes the normalized program (via shen/typing.shen) and the compiled
+\\ theory.  Equations are guarded by per-call-site definedness obligations
+\\ for callees the termination classifier could not prove total; functions
+\\ proven total get Tarver-style unguarded equations.  For each unknown
+\\ function a self-contained defined-NAME predicate is emitted: intro
+\\ clauses, an inversion axiom, and (for self-recursion) a second-order
+\\ minimality schema.  The deduction system is docs/TSL-LOGIC.md.
+\\
+\\ Formula nodes: f-true, f-false, [f-eq A B], [f-cmp Op A B], [f-not F],
+\\ [f-and Fs], [f-or Fs], [f-imp F G], [f-defined Name Terms],
+\\ [f-some Bindings F], [f-all Bindings F], [f-all-types TVars F],
+\\ [f-pred P Terms], [f-all-pred P TypeString F].  Terms are normalized
+\\ expression nodes.
+
+(define shenlogic.tsl.render
+  Program Theory ->
+    (let TR (tsl.type-program Program)
+      (if (tsl.ok? TR)
+          (let Tot (termination.classify Program)
+            [ok (tsl.text (hd (tl TR)) (hd (tl Tot)) Program Theory)])
+          (tsl.render-error TR))))
+
+(define tsl.render-error
+  [error [Code | Payload]] -> [error Code Payload]
+  E -> E)
+
+(define tsl.text
+  TDefs Totality Program Theory ->
+    (@s (tsl.header TDefs Totality)
+        (tsl.axioms-section TDefs Theory)
+        (tsl.definedness-section TDefs Totality Program)
+        (tsl.equations-section TDefs Totality)))
+
+(define tsl.nl
+  -> (n->string 10))
+
+(define tsl.header
+  TDefs Totality ->
+    (@s "; ShenLogic tsl v1" (tsl.nl)
+        "; deduction system: docs/TSL-LOGIC.md" (tsl.nl)
+        (tsl.header-lines TDefs Totality)))
+
+(define tsl.header-lines
+  [] _ -> ""
+  [[t-def Name _ _ _ _] | Ds] Totality ->
+    (let E (tsl.totality-entry Name Totality)
+      (@s "; totality: " (str Name) " " (str (hd (tl E)))
+          " (" (tsl.reason-text (hd (tl (tl E)))) ")" (tsl.nl)
+          (tsl.header-lines Ds Totality))))
+
+(define tsl.totality-entry
+  Name [] -> [Name unknown [unclassified]]
+  Name [[Name S R] | _] -> [Name S R]
+  Name [_ | Es] -> (tsl.totality-entry Name Es))
+
+(define tsl.total-function?
+  Name Totality -> (= (hd (tl (tsl.totality-entry Name Totality))) total))
+
+(define tsl.reason-text
+  [non-recursive] -> "non-recursive"
+  [structural I] -> (@s "structural descent at argument " (str I))
+  [structural-lex I J] -> (@s "lexicographic structural descent at arguments "
+                              (str I) " and " (str J))
+  [int-measure I] -> (@s "integer descent at argument " (str I)
+                         " with guard lower bound")
+  [non-exhaustive F] -> (@s "non-exhaustive clauses in " (str F))
+  [callee G] -> (@s "depends on " (str G))
+  [no-descent] -> "no descent measure found"
+  [unclassified] -> "unclassified"
+  R -> (str R))
+
+\\ --- axiom blocks --------------------------------------------------------
+\\
+\\ The companion theory that makes disequalities and induction provable:
+\\ constructor injectivity, pairwise disjointness, structural induction,
+\\ boolean case analysis, and the conditional's defining equations.  Blocks
+\\ are emitted only for sorts the program's typed reading actually uses, so
+\\ purely numeric programs stay axiom-free.
+
+(define tsl.axioms-section
+  TDefs Theory ->
+    (let Lists (if (tsl.uses-list? TDefs) (tsl.list-axioms) "")
+      (let Users (tsl.user-ctor-axioms Theory)
+        (let Bools (if (tsl.uses-boolean? TDefs) (tsl.boolean-axioms) "")
+          (let Ifs (if (tsl.uses-if? TDefs) (tsl.if-axioms) "")
+            (let Text (@s Lists Users Bools Ifs)
+              (if (= Text "") "" (@s (tsl.nl) Text))))))))
+
+(define tsl.sym
+  Name -> (intern Name))
+
+(define tsl.uses-list? TDefs -> (tsl.types-use? (tsl.all-types TDefs) list))
+(define tsl.uses-boolean? TDefs -> (tsl.types-use? (tsl.all-types TDefs) boolean))
+
+(define tsl.all-types
+  [] -> []
+  [[t-def _ _ Args Result TCs] | Ds] ->
+    (append Args [Result | (append (tsl.clause-binding-types TCs)
+                                   (tsl.all-types Ds))]))
+
+(define tsl.clause-binding-types
+  [] -> []
+  [[t-clause _ _ _ _ Bindings] | TCs] ->
+    (append (map (/. B (hd (tl B))) Bindings)
+            (tsl.clause-binding-types TCs)))
+
+(define tsl.types-use?
+  [] _ -> false
+  [T | Ts] Sort -> (if (tsl.type-uses? T Sort)
+                       true
+                       (tsl.types-use? Ts Sort)))
+
+(define tsl.type-uses?
+  [list T] list -> true
+  [list T] Sort -> (tsl.type-uses? T Sort)
+  T Sort -> (= T Sort))
+
+(define tsl.uses-if?
+  [] -> false
+  [[t-def _ _ _ _ TCs] | Ds] ->
+    (if (tsl.clauses-use-if? TCs) true (tsl.uses-if? Ds)))
+
+(define tsl.clauses-use-if?
+  [] -> false
+  [[t-clause _ _ G B _] | TCs] ->
+    (if (or (tsl.expr-uses-if? B) (tsl.guard-uses-if? G))
+        true
+        (tsl.clauses-use-if? TCs)))
+
+(define tsl.guard-uses-if?
+  none -> false
+  [some G] -> (tsl.expr-uses-if? G)
+  G -> (tsl.expr-uses-if? G))
+
+(define tsl.expr-uses-if?
+  [e-if _ _ _] -> true
+  [e-ctor _ Args] -> (tsl.exprs-use-if? Args)
+  [e-call _ Args] -> (tsl.exprs-use-if? Args)
+  [e-prim _ Args] -> (tsl.exprs-use-if? Args)
+  [e-let _ A B] -> (tsl.exprs-use-if? [A B])
+  [e-and A B] -> (tsl.exprs-use-if? [A B])
+  [e-or A B] -> (tsl.exprs-use-if? [A B])
+  _ -> false)
+
+(define tsl.exprs-use-if?
+  [] -> false
+  [E | Es] -> (if (tsl.expr-uses-if? E) true (tsl.exprs-use-if? Es)))
+
+(define tsl.list-axioms
+  -> (let A (tsl.sym "A") X (tsl.sym "X") Y (tsl.sym "Y")
+          Z (tsl.sym "Z") W (tsl.sym "W") L (tsl.sym "L") P (tsl.sym "P")
+       (@s "; list axioms" (tsl.nl)
+           (tsl.line
+             [f-all [[X A] [Y [list A]] [Z A] [W [list A]]]
+               [f-imp [f-eq [e-ctor cons [[e-var X] [e-var Y]]]
+                            [e-ctor cons [[e-var Z] [e-var W]]]]
+                      [f-and [[f-eq [e-var X] [e-var Z]]
+                              [f-eq [e-var Y] [e-var W]]]]]])
+           (tsl.line
+             [f-all [[X A] [Y [list A]]]
+               [f-not [f-eq [e-ctor cons [[e-var X] [e-var Y]]]
+                            [e-ctor nil []]]]])
+           (tsl.line
+             [f-all-pred P [[list A]]
+               [f-imp
+                 [f-and [[f-pred P [[e-ctor nil []]]]
+                         [f-all [[X A] [Y [list A]]]
+                           [f-imp [f-pred P [[e-var Y]]]
+                                  [f-pred P [[e-ctor cons [[e-var X]
+                                                           [e-var Y]]]]]]]]]
+                 [f-all [[L [list A]]] [f-pred P [[e-var L]]]]]]))))
+
+(define tsl.boolean-axioms
+  -> (let B (tsl.sym "B")
+       (@s "; boolean axioms" (tsl.nl)
+           (tsl.line [f-not [f-eq [e-value true] [e-value false]]])
+           (tsl.line
+             [f-all [[B boolean]]
+               [f-or [[f-eq [e-var B] [e-value true]]
+                      [f-eq [e-var B] [e-value false]]]]]))))
+
+(define tsl.if-axioms
+  -> (let A (tsl.sym "A") X (tsl.sym "X") Y (tsl.sym "Y")
+       (@s "; conditional axioms" (tsl.nl)
+           (tsl.line
+             [f-all [[X A] [Y A]]
+               [f-eq [e-if [e-value true] [e-var X] [e-var Y]] [e-var X]]])
+           (tsl.line
+             [f-all [[X A] [Y A]]
+               [f-eq [e-if [e-value false] [e-var X] [e-var Y]]
+                     [e-var Y]]]))))
+
+\\ User constructors are monomorphic at value: injectivity, pairwise
+\\ disjointness, and induction over the value sort they generate.
+(define tsl.user-ctor-axioms
+  [theory [value-signature Cs] _ _ _ _] ->
+    (let Users (tsl.user-ctors Cs)
+      (if (= Users [])
+          ""
+          (@s "; constructor axioms" (tsl.nl)
+              (tsl.user-injectivity Users)
+              (tsl.user-disjointness Users)
+              (tsl.line (tsl.user-induction Users)))))
+  _ -> "")
+
+(define tsl.user-ctors
+  [] -> []
+  [[constructor Tag _ N] | Cs] ->
+    (if (element? Tag [int true false symbol string nil cons])
+        (tsl.user-ctors Cs)
+        [[Tag N] | (tsl.user-ctors Cs)]))
+
+(define tsl.user-injectivity
+  [] -> ""
+  [[Tag 0] | Cs] -> (tsl.user-injectivity Cs)
+  [[Tag N] | Cs] ->
+    (let Xs (tsl.value-vars "X" 0 N)
+      (let Ys (tsl.value-vars "Y" 0 N)
+        (@s (tsl.line
+              [f-all (append (tsl.value-bindings Xs) (tsl.value-bindings Ys))
+                [f-imp [f-eq [e-ctor Tag (tsl.var-terms Xs)]
+                             [e-ctor Tag (tsl.var-terms Ys)]]
+                       (tsl.flatten-and (tsl.pairwise-eq Xs Ys))]])
+            (tsl.user-injectivity Cs)))))
+
+(define tsl.pairwise-eq
+  [] [] -> []
+  [X | Xs] [Y | Ys] -> [[f-eq [e-var X] [e-var Y]] |
+                        (tsl.pairwise-eq Xs Ys)])
+
+(define tsl.user-disjointness
+  [] -> ""
+  [C | Cs] -> (@s (tsl.disjoint-with C Cs) (tsl.user-disjointness Cs)))
+
+(define tsl.disjoint-with
+  _ [] -> ""
+  [Tag N] [[Tag2 N2] | Cs] ->
+    (let Xs (tsl.value-vars "X" 0 N)
+      (let Ys (tsl.value-vars "Y" 0 N2)
+        (@s (tsl.line
+              [f-all (append (tsl.value-bindings Xs) (tsl.value-bindings Ys))
+                [f-not [f-eq [e-ctor Tag (tsl.var-terms Xs)]
+                             [e-ctor Tag2 (tsl.var-terms Ys)]]]])
+            (tsl.disjoint-with [Tag N] Cs)))))
+
+(define tsl.user-induction
+  Users ->
+    (let P (tsl.sym "P") V (tsl.sym "V")
+      [f-all-pred P [value]
+        [f-imp (tsl.flatten-and (tsl.induction-cases Users P))
+               [f-all [[V value]] [f-pred P [[e-var V]]]]]]))
+
+(define tsl.induction-cases
+  [] _ -> []
+  [[Tag 0] | Cs] P -> [[f-pred P [[e-ctor Tag []]]] |
+                       (tsl.induction-cases Cs P)]
+  [[Tag N] | Cs] P ->
+    (let Xs (tsl.value-vars "X" 0 N)
+      [[f-all (tsl.value-bindings Xs)
+         [f-imp (tsl.flatten-and (tsl.pred-hyps Xs P))
+                [f-pred P [[e-ctor Tag (tsl.var-terms Xs)]]]]] |
+       (tsl.induction-cases Cs P)]))
+
+(define tsl.pred-hyps
+  [] _ -> []
+  [X | Xs] P -> [[f-pred P [[e-var X]]] | (tsl.pred-hyps Xs P)])
+
+(define tsl.value-vars
+  _ N N -> []
+  Prefix I N -> [(tsl.sym (cn Prefix (str I))) |
+                 (tsl.value-vars Prefix (+ I 1) N)])
+
+(define tsl.value-bindings
+  [] -> []
+  [X | Xs] -> [[X value] | (tsl.value-bindings Xs)])
+
+(define tsl.var-terms
+  [] -> []
+  [X | Xs] -> [[e-var X] | (tsl.var-terms Xs)])
+
+\\ --- definedness ---------------------------------------------------------
+
+(define tsl.definedness-section
+  TDefs Totality Program ->
+    (let Text (tsl.definedness-defs TDefs Totality
+                (tsl.singleton-sccs Program))
+      (if (= Text "") "" (@s (tsl.nl) Text))))
+
+(define tsl.singleton-sccs
+  [program Defs] ->
+    (let Names (map (/. D (shenlogic.ast.definition-name D)) Defs)
+      (tsl.singletons (termination.sccs Names
+                        (termination.adjacency Defs Names))))
+  _ -> [])
+
+(define tsl.singletons
+  [] -> []
+  [[scc [N]] | Ss] -> [N | (tsl.singletons Ss)]
+  [_ | Ss] -> (tsl.singletons Ss))
+
+(define tsl.definedness-defs
+  [] _ _ -> ""
+  [D | Ds] Totality Singles ->
+    (@s (tsl.definedness-def D Totality Singles)
+        (tsl.definedness-defs Ds Totality Singles)))
+
+(define tsl.definedness-def
+  [t-def Name TVars Args Result TCs] Totality Singles ->
+    (if (tsl.total-function? Name Totality)
+        ""
+        (@s "; definedness: " (str Name) (tsl.nl)
+            (tsl.intro-lines Name TCs [] Totality)
+            (tsl.line (tsl.inversion Name TVars Args TCs Totality))
+            (if (element? Name Singles)
+                (tsl.line (tsl.minimality Name TVars Args TCs Totality))
+                (@s "; leastness of " (str (tsl.defined-name Name))
+                    " is model-theoretic (mutual recursion)" (tsl.nl))))))
+
+(define tsl.line
+  F -> (@s (tsl.render-formula (tsl.quantify-types F)) (tsl.nl)))
+
+(define tsl.intro-lines
+  _ [] _ _ -> ""
+  Name [TC | TCs] Prior Totality ->
+    (@s (tsl.line (tsl.intro-formula Name TC (reverse Prior) Totality))
+        (tsl.intro-lines Name TCs [TC | Prior] Totality)))
+
+\\ An intro clause is the clause's equation conditions concluding in
+\\ defined-NAME applied to the clause's pattern terms.
+(define tsl.intro-formula
+  Name [t-clause I Ps G B Bindings] Prior Totality ->
+    (let Conds (tsl.clause-conditions [t-clause I Ps G B Bindings]
+                 Prior Totality)
+      (tsl.quantify Bindings
+        (tsl.implies Conds
+          [f-defined (tsl.defined-name Name) (tsl.pattern-terms Ps)]))))
+
+(define tsl.defined-name
+  Name -> (intern (cn "defined-" (str Name))))
+
+\\ The inversion axiom: a defined call entered through some clause whose
+\\ match, priority context, guard, and body obligations all hold.
+(define tsl.inversion
+  Name TVars Args TCs Totality ->
+    (let Univ (tsl.universal-args TCs Args 0)
+      (tsl.quantify Univ
+        [f-imp [f-defined (tsl.defined-name Name) (tsl.binding-terms Univ)]
+               (tsl.or-cases (tsl.inversion-cases TCs [] Univ Totality))])))
+
+(define tsl.or-cases
+  [] -> [f-false]
+  [F] -> F
+  Fs -> [f-or Fs])
+
+(define tsl.inversion-cases
+  [] _ _ _ -> []
+  [TC | TCs] Prior Univ Totality ->
+    (let Exts (tsl.exclusion-formulas (reverse Prior)
+                (tsl.binding-patterns Univ) (tsl.binding-names Univ) Totality)
+      (let App (tsl.applicable TC (tsl.binding-patterns Univ)
+                 (tsl.binding-names Univ) true Totality)
+        (append
+          (if (= App disjoint)
+              []
+              [(tsl.flatten-and (append Exts [(hd (tl App))]))])
+          (tsl.inversion-cases TCs [TC | Prior] Univ Totality)))))
+
+(define tsl.flatten-and
+  [F] -> F
+  Fs -> [f-and (tsl.flatten-and-list Fs)])
+
+(define tsl.flatten-and-list
+  [] -> []
+  [[f-and Gs] | Fs] -> (append Gs (tsl.flatten-and-list Fs))
+  [F | Fs] -> [F | (tsl.flatten-and-list Fs)])
+
+\\ Universal argument names: the first pattern variable seen at a position,
+\\ else a generated name; all kept distinct.
+(define tsl.universal-args
+  TCs [] _ -> []
+  TCs [T | Ts] I ->
+    (let Rest (tsl.universal-args TCs Ts (+ I 1))
+      [[(tsl.univ-name TCs I (map (/. B (hd B)) Rest)) T] | Rest]))
+
+(define tsl.univ-name
+  TCs I Taken ->
+    (let V (tsl.first-var-at TCs I)
+      (if (or (= V none) (element? (hd (tl V)) Taken))
+          (tsl.fresh-univ I Taken)
+          (hd (tl V)))))
+
+(define tsl.first-var-at
+  [] _ -> none
+  [[t-clause _ Ps _ _ _] | TCs] I ->
+    (let P (termination.nth Ps I)
+      (if (= (hd P) p-var)
+          [found (hd (tl P))]
+          (tsl.first-var-at TCs I))))
+
+(define tsl.fresh-univ
+  I Taken -> (let V (intern (cn "A" (str I)))
+               (if (element? V Taken)
+                   (tsl.fresh-univ (+ I 1) Taken)
+                   V)))
+
+(define tsl.binding-patterns
+  [] -> []
+  [[V _] | Bs] -> [[p-var V] | (tsl.binding-patterns Bs)])
+
+(define tsl.binding-names
+  [] -> []
+  [[V _] | Bs] -> [V | (tsl.binding-names Bs)])
+
+(define tsl.binding-terms
+  [] -> []
+  [[V _] | Bs] -> [[e-var V] | (tsl.binding-terms Bs)])
+
+\\ Second-order minimality for a self-recursive unknown function: any
+\\ predicate closed under the intro clauses contains defined-NAME.
+(define tsl.minimality
+  Name TVars Args TCs Totality ->
+    (let P (tsl.pred-name TCs)
+      (let Univ (tsl.universal-args TCs Args 0)
+        [f-all-pred P Args
+          [f-imp (tsl.flatten-and (tsl.closure-clauses Name P TCs [] Totality))
+                 (tsl.quantify Univ
+                   [f-imp [f-defined (tsl.defined-name Name)
+                           (tsl.binding-terms Univ)]
+                          [f-pred P (tsl.binding-terms Univ)]])]])))
+
+(define tsl.closure-clauses
+  _ _ [] _ _ -> []
+  Name P [TC | TCs] Prior Totality ->
+    [(tsl.swap-defined (tsl.intro-formula Name TC (reverse Prior) Totality)
+       (tsl.defined-name Name) P) |
+     (tsl.closure-clauses Name P TCs [TC | Prior] Totality)])
+
+(define tsl.pred-name
+  TCs -> (tsl.pred-candidate
+           [(intern "P") (intern "Pred") (intern "Pred0")]
+           (tsl.clause-var-names TCs)))
+
+(define tsl.pred-candidate
+  [C | Cs] Taken -> (if (element? C Taken)
+                        (tsl.pred-candidate Cs Taken)
+                        C))
+
+(define tsl.clause-var-names
+  [] -> []
+  [[t-clause _ _ _ _ Bindings] | TCs] ->
+    (append (map (/. B (hd B)) Bindings) (tsl.clause-var-names TCs)))
+
+(define tsl.pred-type
+  [] -> "o"
+  [T | Ts] -> (@s "(" (tsl.render-type T) " => " (tsl.pred-type Ts) ")"))
+
+(define tsl.swap-defined
+  [f-defined D Ts] D P -> [f-pred P Ts]
+  [f-defined E Ts] _ _ -> [f-defined E Ts]
+  [f-not F] D P -> [f-not (tsl.swap-defined F D P)]
+  [f-and Fs] D P -> [f-and (tsl.swap-defined-list Fs D P)]
+  [f-or Fs] D P -> [f-or (tsl.swap-defined-list Fs D P)]
+  [f-imp F G] D P -> [f-imp (tsl.swap-defined F D P) (tsl.swap-defined G D P)]
+  [f-some Bs F] D P -> [f-some Bs (tsl.swap-defined F D P)]
+  [f-all Bs F] D P -> [f-all Bs (tsl.swap-defined F D P)]
+  [f-all-types Vs F] D P -> [f-all-types Vs (tsl.swap-defined F D P)]
+  F _ _ -> F)
+
+(define tsl.swap-defined-list
+  [] _ _ -> []
+  [F | Fs] D P -> [(tsl.swap-defined F D P) | (tsl.swap-defined-list Fs D P)])
+
+\\ --- equations -----------------------------------------------------------
+
+(define tsl.equations-section
+  TDefs Totality ->
+    (@s (tsl.nl) "; equations" (tsl.nl)
+        (tsl.equations-defs TDefs Totality)))
+
+(define tsl.equations-defs
+  [] _ -> ""
+  [[t-def Name _ _ _ TCs] | Ds] Totality ->
+    (@s (tsl.equation-lines Name TCs [] Totality)
+        (tsl.equations-defs Ds Totality)))
+
+(define tsl.equation-lines
+  _ [] _ _ -> ""
+  Name [TC | TCs] Prior Totality ->
+    (@s (tsl.line (tsl.equation-formula Name TC (reverse Prior) Totality))
+        (tsl.equation-lines Name TCs [TC | Prior] Totality)))
+
+(define tsl.equation-formula
+  Name [t-clause I Ps G B Bindings] Prior Totality ->
+    (let Conds (tsl.clause-conditions [t-clause I Ps G B Bindings]
+                 Prior Totality)
+      (tsl.quantify Bindings
+        (tsl.implies Conds
+          [f-eq [e-call Name (tsl.pattern-terms Ps)]
+                (tsl.inline B)]))))
+
+\\ Shared clause conditions: priority exclusions, then the guard, then the
+\\ body's definedness obligations.
+(define tsl.clause-conditions
+  [t-clause _ Ps G B Bindings] Prior Totality ->
+    (append (tsl.exclusion-formulas Prior Ps
+              (map (/. X (hd X)) Bindings) Totality)
+      (append (tsl.guard-formula G)
+              (tsl.unique-formulas
+                (tsl.obligations (tsl.inline B) Totality)))))
+
+(define tsl.implies
+  [] F -> F
+  Conds F -> [f-imp (tsl.flatten-and Conds) F])
+
+(define tsl.quantify
+  [] F -> F
+  Bindings F -> [f-all Bindings F])
+
+(define tsl.guard-formula
+  none -> []
+  [some G] -> [(tsl.formula-of (tsl.inline G))]
+  G -> [(tsl.formula-of (tsl.inline G))])
+
+(define tsl.unique-formulas
+  [] -> []
+  [F | Fs] -> (if (element? F Fs)
+                  (tsl.unique-formulas Fs)
+                  [F | (tsl.unique-formulas Fs)]))
+
+(define tsl.pattern-terms
+  [] -> []
+  [P | Ps] -> [(tsl.pattern-term P) | (tsl.pattern-terms Ps)])
+
+(define tsl.pattern-term
+  [p-var X] -> [e-var X]
+  [p-lit L] -> [e-value L]
+  [p-ctor Tag Ps] -> [e-ctor Tag (tsl.pattern-terms Ps)]
+  [p-wild] -> [e-var _])
+
+\\ --- clause priority exclusions ------------------------------------------
+
+(define tsl.exclusion-formulas
+  [] _ _ _ -> []
+  [TC | TCs] CurrentPs Avoid Totality ->
+    (let App (tsl.applicable TC CurrentPs Avoid false Totality)
+      (if (= App disjoint)
+          (tsl.exclusion-formulas TCs CurrentPs Avoid Totality)
+          [[f-not (hd (tl App))] |
+           (tsl.exclusion-formulas TCs CurrentPs Avoid Totality)])))
+
+\\ Whether a prior clause can fire on the current clause's arguments.
+\\ Returns disjoint (statically impossible, justified by the constructor
+\\ disjointness axioms and literal distinctness) or [formula F], where F
+\\ existentially binds the prior clause's own unresolved variables.
+(define tsl.applicable
+  [t-clause I Ps G B Bindings] CurrentPs Avoid WithOblig Totality ->
+    (let M (tsl.match-pairs Ps CurrentPs [] [])
+      (if (= M disjoint)
+          disjoint
+          (let Env (hd (tl M))
+            (let Conds (tsl.subst-formulas (reverse (hd (tl (tl M)))) Env)
+              (let Guard (tsl.subst-formulas
+                           (tsl.guard-formula G) Env)
+                (let Obligs (if WithOblig
+                                (tsl.subst-formulas
+                                  (tsl.unique-formulas
+                                    (tsl.obligations (tsl.inline B) Totality))
+                                  Env)
+                                [])
+                  (let All (append Conds (append Guard Obligs))
+                    (tsl.close-over All Bindings Env Avoid)))))))))
+
+\\ Existentially close a condition list over the prior clause's variables
+\\ that were not resolved to current-clause terms, renaming to avoid
+\\ capture.
+(define tsl.close-over
+  All Bindings Env Avoid ->
+    (let Free (tsl.free-priors (tsl.binding-names Bindings) Env
+                (tsl.formulas-vars All))
+      (if (= Free [])
+          [formula (tsl.flatten-and All)]
+          (let Renames (tsl.rename-map Free Avoid [])
+            [formula [f-some (tsl.renamed-bindings Free Renames Bindings)
+                      (tsl.flatten-and
+                        (tsl.subst-formulas All Renames))]]))))
+
+(define tsl.free-priors
+  [] _ _ -> []
+  [V | Vs] Env Used ->
+    (if (and (= (tsl.env-lookup V Env) not-found) (element? V Used))
+        [V | (tsl.free-priors Vs Env Used)]
+        (tsl.free-priors Vs Env Used)))
+
+(define tsl.rename-map
+  [] _ _ -> []
+  [V | Vs] Avoid Taken ->
+    (let W (if (or (element? V Avoid) (element? V Taken))
+               (tsl.fresh-exist 0 (append Avoid Taken))
+               V)
+      [[V [e-var W]] | (tsl.rename-map Vs Avoid [W | Taken])]))
+
+(define tsl.fresh-exist
+  N Avoid -> (let V (intern (cn "E" (str N)))
+               (if (element? V Avoid)
+                   (tsl.fresh-exist (+ N 1) Avoid)
+                   V)))
+
+(define tsl.renamed-bindings
+  [] _ _ -> []
+  [V | Vs] Renames Bindings ->
+    (let T (tsl.env-lookup V Bindings)
+      (let R (tsl.env-lookup V Renames)
+        [[(tsl.term-var (hd (tl R))) (if (= T not-found) value (hd (tl T)))] |
+         (tsl.renamed-bindings Vs Renames Bindings)])))
+
+(define tsl.term-var
+  [e-var V] -> V)
+
+\\ Match a prior clause's patterns against the current clause's patterns.
+\\ Result: disjoint | [m Env Conds] with Env mapping prior variables to
+\\ current terms and Conds accumulated in reverse.
+(define tsl.match-pairs
+  [] [] Env Conds -> [m Env Conds]
+  [P | Ps] [A | As] Env Conds ->
+    (let R (tsl.match-one P A Env Conds)
+      (if (= R disjoint)
+          disjoint
+          (tsl.match-pairs Ps As (hd (tl R)) (hd (tl (tl R))))))
+  _ _ _ _ -> disjoint)
+
+(define tsl.match-one
+  [p-wild] _ Env Conds -> [m Env Conds]
+  [p-var X] A Env Conds ->
+    (let Old (tsl.env-lookup X Env)
+      (if (= Old not-found)
+          [m [[X (tsl.pattern-term A)] | Env] Conds]
+          [m Env [[f-eq (hd (tl Old)) (tsl.pattern-term A)] | Conds]]))
+  [p-lit L] [p-lit L] Env Conds -> [m Env Conds]
+  [p-lit _] [p-lit _] _ _ -> disjoint
+  [p-lit L] [p-var V] Env Conds ->
+    [m Env [[f-eq [e-var V] [e-value L]] | Conds]]
+  [p-lit L] [p-wild] Env Conds -> [m Env Conds]
+  [p-lit _] [p-ctor _ _] _ _ -> disjoint
+  [p-ctor Tag Ps] [p-ctor Tag As] Env Conds ->
+    (if (= (length Ps) (length As))
+        (tsl.match-fields Ps As Env Conds)
+        disjoint)
+  [p-ctor _ _] [p-ctor _ _] _ _ -> disjoint
+  [p-ctor Tag Ps] [p-var V] Env Conds ->
+    [m Env [[f-eq [e-var V] [e-ctor Tag (tsl.pattern-terms Ps)]] | Conds]]
+  [p-ctor Tag Ps] [p-wild] Env Conds -> [m Env Conds]
+  [p-ctor _ _] [p-lit _] _ _ -> disjoint
+  _ _ _ _ -> disjoint)
+
+(define tsl.match-fields
+  [] [] Env Conds -> [m Env Conds]
+  [P | Ps] [A | As] Env Conds ->
+    (let R (tsl.match-one P A Env Conds)
+      (if (= R disjoint)
+          disjoint
+          (tsl.match-fields Ps As (hd (tl R)) (hd (tl (tl R)))))))
+
+\\ --- definedness obligations ---------------------------------------------
+
+(define tsl.obligations
+  [e-var _] _ -> []
+  [e-value _] _ -> []
+  [e-ctor _ Args] Totality -> (tsl.obligations-list Args Totality)
+  [e-prim _ Args] Totality -> (tsl.obligations-list Args Totality)
+  [e-call F Args] Totality ->
+    (append (tsl.obligations-list Args Totality)
+            (if (tsl.total-function? F Totality)
+                []
+                [[f-defined (tsl.defined-name F) Args]]))
+  [e-if C T F] Totality ->
+    (append (tsl.obligations C Totality)
+      (let OT (tsl.obligations T Totality)
+        (let OF (tsl.obligations F Totality)
+          (if (and (= OT []) (= OF []))
+              []
+              [[f-or [(tsl.flatten-and [(tsl.formula-of C) | OT])
+                      (tsl.flatten-and [[f-not (tsl.formula-of C)] | OF])]]]))))
+  [e-and A B] Totality ->
+    (append (tsl.obligations A Totality)
+      (let OB (tsl.obligations B Totality)
+        (if (= OB [])
+            []
+            [[f-or [[f-not (tsl.formula-of A)] (tsl.flatten-and OB)]]])))
+  [e-or A B] Totality ->
+    (append (tsl.obligations A Totality)
+      (let OB (tsl.obligations B Totality)
+        (if (= OB [])
+            []
+            [[f-or [(tsl.formula-of A) (tsl.flatten-and OB)]]])))
+  [e-let X A B] Totality ->
+    (tsl.obligations (tsl.inline [e-let X A B]) Totality)
+  _ _ -> [])
+
+(define tsl.obligations-list
+  [] _ -> []
+  [E | Es] Totality -> (append (tsl.obligations E Totality)
+                               (tsl.obligations-list Es Totality)))
+
+\\ --- boolean expressions as formulas -------------------------------------
+
+(define tsl.formula-of
+  [e-value true] -> [f-true]
+  [e-value false] -> [f-false]
+  [e-prim = [A B]] -> [f-eq A B]
+  [e-prim neq [A B]] -> [f-not [f-eq A B]]
+  [e-prim < [A B]] -> [f-cmp < A B]
+  [e-prim > [A B]] -> [f-cmp > A B]
+  [e-prim <= [A B]] -> [f-cmp <= A B]
+  [e-prim >= [A B]] -> [f-cmp >= A B]
+  [e-and A B] -> [f-and [(tsl.formula-of A) (tsl.formula-of B)]]
+  [e-or A B] -> [f-or [(tsl.formula-of A) (tsl.formula-of B)]]
+  E -> [f-eq E [e-value true]])
+
+\\ --- let inlining --------------------------------------------------------
+
+(define tsl.inline
+  [e-let X A B] -> (tsl.subst-expr (tsl.inline B) [[X (tsl.inline A)]])
+  [e-ctor Tag Args] -> [e-ctor Tag (map (/. E (tsl.inline E)) Args)]
+  [e-call F Args] -> [e-call F (map (/. E (tsl.inline E)) Args)]
+  [e-prim Op Args] -> [e-prim Op (map (/. E (tsl.inline E)) Args)]
+  [e-if C T F] -> [e-if (tsl.inline C) (tsl.inline T) (tsl.inline F)]
+  [e-and A B] -> [e-and (tsl.inline A) (tsl.inline B)]
+  [e-or A B] -> [e-or (tsl.inline A) (tsl.inline B)]
+  E -> E)
+
+\\ --- substitution --------------------------------------------------------
+
+(define tsl.subst-expr
+  [e-var X] Env -> (let F (tsl.env-lookup X Env)
+                     (if (= F not-found) [e-var X] (hd (tl F))))
+  [e-ctor Tag Args] Env -> [e-ctor Tag (tsl.subst-exprs Args Env)]
+  [e-call F Args] Env -> [e-call F (tsl.subst-exprs Args Env)]
+  [e-prim Op Args] Env -> [e-prim Op (tsl.subst-exprs Args Env)]
+  [e-if C T F] Env -> [e-if (tsl.subst-expr C Env) (tsl.subst-expr T Env)
+                            (tsl.subst-expr F Env)]
+  [e-and A B] Env -> [e-and (tsl.subst-expr A Env) (tsl.subst-expr B Env)]
+  [e-or A B] Env -> [e-or (tsl.subst-expr A Env) (tsl.subst-expr B Env)]
+  [e-let X A B] Env -> [e-let X (tsl.subst-expr A Env)
+                              (tsl.subst-expr B (tsl.env-drop X Env))]
+  E _ -> E)
+
+(define tsl.subst-exprs
+  [] _ -> []
+  [E | Es] Env -> [(tsl.subst-expr E Env) | (tsl.subst-exprs Es Env)])
+
+(define tsl.env-drop
+  _ [] -> []
+  X [[X _] | Rest] -> (tsl.env-drop X Rest)
+  X [B | Rest] -> [B | (tsl.env-drop X Rest)])
+
+(define tsl.subst-formulas
+  [] _ -> []
+  [F | Fs] Env -> [(tsl.subst-formula F Env) | (tsl.subst-formulas Fs Env)])
+
+(define tsl.subst-formula
+  [f-eq A B] Env -> [f-eq (tsl.subst-expr A Env) (tsl.subst-expr B Env)]
+  [f-cmp Op A B] Env -> [f-cmp Op (tsl.subst-expr A Env)
+                               (tsl.subst-expr B Env)]
+  [f-not F] Env -> [f-not (tsl.subst-formula F Env)]
+  [f-and Fs] Env -> [f-and (tsl.subst-formulas Fs Env)]
+  [f-or Fs] Env -> [f-or (tsl.subst-formulas Fs Env)]
+  [f-imp F G] Env -> [f-imp (tsl.subst-formula F Env)
+                            (tsl.subst-formula G Env)]
+  [f-defined N Ts] Env -> [f-defined N (tsl.subst-exprs Ts Env)]
+  [f-pred P Ts] Env -> [f-pred P (tsl.subst-exprs Ts Env)]
+  [f-some Bs F] Env ->
+    [f-some Bs (tsl.subst-formula F
+                 (tsl.env-drop-all (tsl.binding-names Bs) Env))]
+  [f-all Bs F] Env ->
+    [f-all Bs (tsl.subst-formula F
+                (tsl.env-drop-all (tsl.binding-names Bs) Env))]
+  F _ -> F)
+
+(define tsl.env-drop-all
+  [] Env -> Env
+  [X | Xs] Env -> (tsl.env-drop-all Xs (tsl.env-drop X Env)))
+
+\\ --- variable collection -------------------------------------------------
+
+(define tsl.formulas-vars
+  [] -> []
+  [F | Fs] -> (append (tsl.formula-vars F) (tsl.formulas-vars Fs)))
+
+(define tsl.formula-vars
+  [f-eq A B] -> (append (tsl.expr-vars A) (tsl.expr-vars B))
+  [f-cmp _ A B] -> (append (tsl.expr-vars A) (tsl.expr-vars B))
+  [f-not F] -> (tsl.formula-vars F)
+  [f-and Fs] -> (tsl.formulas-vars Fs)
+  [f-or Fs] -> (tsl.formulas-vars Fs)
+  [f-imp F G] -> (append (tsl.formula-vars F) (tsl.formula-vars G))
+  [f-defined _ Ts] -> (tsl.exprs-vars Ts)
+  [f-pred _ Ts] -> (tsl.exprs-vars Ts)
+  [f-some _ F] -> (tsl.formula-vars F)
+  [f-all _ F] -> (tsl.formula-vars F)
+  [f-all-types _ F] -> (tsl.formula-vars F)
+  _ -> [])
+
+\\ --- type-variable quantification ----------------------------------------
+
+(define tsl.quantify-types
+  F -> (let TVars (tsl.unique-formulas (tsl.formula-tvars F))
+         (if (= TVars []) F [f-all-types TVars F])))
+
+(define tsl.formula-tvars
+  [f-some Bs F] -> (append (tsl.bindings-tvars Bs) (tsl.formula-tvars F))
+  [f-all Bs F] -> (append (tsl.bindings-tvars Bs) (tsl.formula-tvars F))
+  [f-not F] -> (tsl.formula-tvars F)
+  [f-and Fs] -> (tsl.formulas-tvars Fs)
+  [f-or Fs] -> (tsl.formulas-tvars Fs)
+  [f-imp F G] -> (append (tsl.formula-tvars F) (tsl.formula-tvars G))
+  [f-all-pred _ Args F] -> (append (tsl.types-tvars Args)
+                                   (tsl.formula-tvars F))
+  _ -> [])
+
+(define tsl.types-tvars
+  [] -> []
+  [T | Ts] -> (append (tsl.tvars-type T []) (tsl.types-tvars Ts)))
+
+(define tsl.formulas-tvars
+  [] -> []
+  [F | Fs] -> (append (tsl.formula-tvars F) (tsl.formulas-tvars Fs)))
+
+(define tsl.bindings-tvars
+  [] -> []
+  [[_ T] | Bs] -> (append (tsl.tvars-type T []) (tsl.bindings-tvars Bs)))
+
+\\ --- rendering -----------------------------------------------------------
+
+(define tsl.render-formula
+  [f-true] -> "true"
+  [f-false] -> "false"
+  [f-eq A B] -> (@s "(" (tsl.render-term A) " = " (tsl.render-term B) ")")
+  [f-cmp Op A B] -> (@s "(" (str Op) " " (tsl.render-term A) " "
+                        (tsl.render-term B) ")")
+  [f-not F] -> (@s "(~ " (tsl.render-formula F) ")")
+  [f-and []] -> "true"
+  [f-and [F]] -> (tsl.render-formula F)
+  [f-and Fs] -> (@s "(and " (tsl.render-formulas Fs) ")")
+  [f-or []] -> "false"
+  [f-or [F]] -> (tsl.render-formula F)
+  [f-or Fs] -> (@s "(or " (tsl.render-formulas Fs) ")")
+  [f-imp F G] -> (@s "(" (tsl.render-formula F) " => "
+                     (tsl.render-formula G) ")")
+  [f-defined N []] -> (@s "(" (str N) ")")
+  [f-defined N Ts] -> (@s "(" (str N) " " (tsl.render-terms Ts) ")")
+  [f-pred P []] -> (@s "(" (str P) ")")
+  [f-pred P Ts] -> (@s "(" (str P) " " (tsl.render-terms Ts) ")")
+  [f-some [] F] -> (tsl.render-formula F)
+  [f-some [[V T] | Bs] F] ->
+    (@s "(some " (str V) " : " (tsl.render-type T) " "
+        (tsl.render-formula [f-some Bs F]) ")")
+  [f-all [] F] -> (tsl.render-formula F)
+  [f-all [[V T] | Bs] F] ->
+    (@s "(all " (str V) " : " (tsl.render-type T) " "
+        (tsl.render-formula [f-all Bs F]) ")")
+  [f-all-types [] F] -> (tsl.render-formula F)
+  [f-all-types [A | As] F] ->
+    (@s "(all " (str A) " : type "
+        (tsl.render-formula [f-all-types As F]) ")")
+  [f-all-pred P Args F] ->
+    (@s "(all " (str P) " : " (tsl.pred-type Args) " "
+        (tsl.render-formula F) ")"))
+
+(define tsl.render-formulas
+  [] -> ""
+  [F] -> (tsl.render-formula F)
+  [F | Fs] -> (@s (tsl.render-formula F) " " (tsl.render-formulas Fs)))
+
+(define tsl.render-term
+  [e-var X] -> (str X)
+  [e-value V] -> (tsl.render-literal V)
+  [e-ctor nil []] -> "()"
+  [e-ctor Tag []] -> (@s "(" (str Tag) ")")
+  [e-ctor Tag Args] -> (@s "(" (str Tag) " " (tsl.render-terms Args) ")")
+  [e-call F []] -> (@s "(" (str F) ")")
+  [e-call F Args] -> (@s "(" (str F) " " (tsl.render-terms Args) ")")
+  [e-prim Op Args] -> (@s "(" (str Op) " " (tsl.render-terms Args) ")")
+  [e-if C T F] -> (@s "(if " (tsl.render-term C) " " (tsl.render-term T)
+                      " " (tsl.render-term F) ")")
+  [e-and A B] -> (@s "(and " (tsl.render-term A) " " (tsl.render-term B) ")")
+  [e-or A B] -> (@s "(or " (tsl.render-term A) " " (tsl.render-term B) ")")
+  X -> (str X))
+
+(define tsl.render-terms
+  [] -> ""
+  [T] -> (tsl.render-term T)
+  [T | Ts] -> (@s (tsl.render-term T) " " (tsl.render-terms Ts)))
+
+(define tsl.render-literal
+  V -> (if (string? V)
+           (@s (n->string 34) V (n->string 34))
+           (str V)))
+
+(define tsl.render-type
+  [list T] -> (@s "(list " (tsl.render-type T) ")")
+  T -> (str T))

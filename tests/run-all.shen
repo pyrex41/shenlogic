@@ -79,6 +79,29 @@
           (sl-check "factorial-thf"
                     (= (sl-render "examples/factorial.shen" "thf")
                        (sl-read "tests/golden/factorial.thf")))
+          (sl-check "factorial-tsl"
+                    (= (sl-render "examples/factorial.shen" "tsl")
+                       (sl-read "tests/golden/factorial.tsl.logic")))
+          (sl-check "tsl-rejects-missing-signature"
+                    (sl-translation-rejected?
+                      "tests/fixtures/tsl-no-signature.shen" "tsl"))
+          (sl-check "tsl-rejects-sort-mixing"
+                    (sl-translation-rejected?
+                      "examples/v2-constructors.shen" "tsl"))
+          (sl-check "tsl-guards-supported"
+                    (sl-translation-succeeds? "examples/guards.shen" "tsl"))
+          (sl-check "tsl-mutual-supported"
+                    (sl-translation-succeeds? "examples/mutual.shen" "tsl"))
+          (sl-check "tsl-lists-tsl"
+                    (= (sl-render "examples/tsl-lists.shen" "tsl")
+                       (sl-read "tests/golden/tsl-lists.tsl.logic")))
+          (sl-check "tsl-values-tsl"
+                    (= (sl-render "examples/tsl-values.shen" "tsl")
+                       (sl-read "tests/golden/tsl-values.tsl.logic")))
+          (sl-check "tsl-lists-eval"
+                    (= (sl-eval "examples/tsl-lists.shen"
+                                "(append2 [1 2] [3])")
+                       [value [1 2 3]]))
           (sl-check "strict-let-eval"
                     (= (sl-eval "examples/strict.shen" "(strict-probe 4)")
                        [value 10]))

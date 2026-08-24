@@ -44,6 +44,21 @@ All modes exclude floating point, division, partial primitives, effects,
 mutable state, I/O, exceptions, dynamic loading, Prolog/backtracking,
 higher-order values, and user calls in clause guards.
 
+## tsl semantics
+
+The `tsl` format renders the same programs as a typed second-order
+equational theory (see [TSL-LOGIC.md](TSL-LOGIC.md)). Its intended models
+are sorted: `number` is the integers, `boolean` two-valued, `(list A)`
+the finite proper lists, and `value` the free algebra of the program's
+constructors. Declared signatures are required and checked; programs
+without a consistent typed reading are rejected rather than
+approximated. Equations are guarded by `defined-` antecedents exactly
+where the conservative termination classifier could not prove totality,
+so partial functions are never silently totalized. The intended
+definedness reading is `defined-f(ā) iff exists v. f$(ā,v)` against the
+graph semantics above; that correspondence is a stated obligation, not a
+mechanized theorem.
+
 The intended adequacy theorem is:
 
 ```text

@@ -1,0 +1,19 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: append2 total (structural descent at argument 0)
+; totality: first unknown (non-exhaustive clauses in first)
+
+; list axioms
+(all A : type (all X : A (all Y : (list A) (all Z : A (all W : (list A) (((cons X Y) = (cons Z W)) => (and (X = Z) (Y = W))))))))
+(all A : type (all X : A (all Y : (list A) (~ ((cons X Y) = ())))))
+(all A : type (all P : ((list A) => o) ((and (P ()) (all X : A (all Y : (list A) ((P Y) => (P (cons X Y)))))) => (all L : (list A) (P L)))))
+
+; definedness: first
+(all A : type (all X : A (all W0 : (list A) (defined-first (cons X W0)))))
+(all A : type (all A0 : (list A) ((defined-first A0) => (some X : A (some W0 : (list A) (A0 = (cons X W0)))))))
+(all A : type (all P : ((list A) => o) ((all X : A (all W0 : (list A) (P (cons X W0)))) => (all A0 : (list A) ((defined-first A0) => (P A0))))))
+
+; equations
+(all A : type (all Ys : (list A) ((append2 () Ys) = Ys)))
+(all A : type (all X : A (all Xs : (list A) (all Ys : (list A) ((append2 (cons X Xs) Ys) = (cons X (append2 Xs Ys)))))))
+(all A : type (all X : A (all W0 : (list A) ((first (cons X W0)) = X))))

@@ -13,7 +13,9 @@ For each supported Shen function, ShenLogic can produce:
 - `graph`: relational rules describing terminating evaluations;
 - `slir`: the canonical ShenLogic intermediate representation;
 - `chc`: SMT-LIB constrained Horn clauses;
-- `thf`: typed higher-order TPTP formulas.
+- `thf`: typed higher-order TPTP formulas;
+- `tsl`: typed second-order equations with definedness guards and
+  constructor axioms (see [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md)).
 
 The graph, CHC, and THF outputs use an explicit result relation. This preserves
 partiality: if a Shen call does not terminate, the generated graph does not
@@ -50,6 +52,7 @@ Translate the factorial example:
 ./bin/shenlogic translate examples/factorial.shen --format slir
 ./bin/shenlogic translate examples/factorial.shen --format chc
 ./bin/shenlogic translate examples/factorial.shen --format thf
+./bin/shenlogic translate examples/factorial.shen --format tsl
 ```
 
 Evaluate a supported expression:

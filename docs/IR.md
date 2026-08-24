@@ -41,7 +41,12 @@ by those paths rather than opaque host matching. `chc` emits SMT-LIB
 fixedpoint rules over the closed Value algebra;
 `unknown` is never treated as a proof. `thf` emits a full-model TPTP typed
 higher-order specification, including simultaneous relation quantifiers and
-leastness obligations required by mutual recursion.
+leastness obligations required by mutual recursion. `tsl` emits the typed
+second-order equational theory of [TSL-LOGIC.md](TSL-LOGIC.md): constructor
+axioms, definedness predicates for functions not proven total, and guarded
+clause equations. It consumes the normalized program (declared signatures
+are required) alongside the theory, and is not yet part of the certificate
+bundle.
 
 Backends reject unresolved polymorphism, unknown calls, unsupported arithmetic,
 and constructs outside the v2 capability matrix. No backend silently changes

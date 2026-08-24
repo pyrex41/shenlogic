@@ -11,6 +11,9 @@
 (load "shen/graph.shen")
 (load "shen/chc.shen")
 (load "shen/thf.shen")
+(load "shen/typing.shen")
+(load "shen/termination.shen")
+(load "shen/tsl.shen")
 (load "shen/workflow.shen")
 
 (define shenlogic.version
@@ -47,6 +50,7 @@
   "slir" _ Theory -> (serialize.canonical [shenlogic-ir 2 Theory])
   "chc" _ Theory -> (shenlogic.unwrap (shenlogic.chc.render Theory nonlinear))
   "thf" _ Theory -> (shenlogic.unwrap (shenlogic.thf.render Theory full-model))
+  "tsl" Program Theory -> (shenlogic.unwrap (shenlogic.tsl.render Program Theory))
   Format _ _ -> (error (cn "unsupported format: " Format)))
 
 (define shenlogic.check-file
