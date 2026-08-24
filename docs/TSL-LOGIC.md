@@ -13,6 +13,8 @@ Types:
 - rigid sorts `number` (exact integers), `boolean`, `symbol`, `string`,
   and `value`;
 - `(list T)` for each type `T`;
+- rank-1 function types `(T1 --> ... --> R)` in argument positions of
+  signatures and quantifiers;
 - type variables `A, B, ...`, bound only by `(all A : type ...)`;
 - predicate types `(T1 => ... => o)`, bound only by second-order
   quantifiers.
@@ -128,5 +130,20 @@ that would discharge it are tracked in `docs/PROOF-OBLIGATIONS.md`.
   pattern on the same argument) have no typed reading and are rejected.
 - `let` is inlined by substitution; pathological duplication is
   accepted.
-- Higher-order signatures are rejected at `sl-t002` until the
-  function-parameter extension lands.
+- Any function using a parameter application is classified unknown;
+  totality relative to the parameter's totality is future work.
+
+## Function parameters
+
+A variable of function type may be applied — `((F X) = ...)` renders
+application directly, and `(all F : (A --> B) ...)` quantifies over the
+function space of the model. Each applied arity `N` introduces a
+predicate `defined-apply-N` with the intended reading
+`exists r. sl.apply-N(F, x̄, r)` against the defunctionalized graph
+theory (`docs/SEMANTICS.md`). The emitted axioms constrain it on named
+functions: total functions are defined-apply everywhere; unknown
+functions satisfy `(defined-f x̄) <=> (defined-apply-N f x̄)`. Every
+application site in a body contributes a `defined-apply-N` obligation to
+its clause's antecedent, since the applied argument is arbitrary. A
+defined function name written where an arrow type is expected denotes
+that function; its signature instantiates at the use.

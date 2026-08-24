@@ -146,6 +146,9 @@
                        (sl-read "tests/golden/map.surface.logic")))
           (sl-check "map-certificate"
                     (certificate-test-file-success "examples/v2-map.shen"))
+          (sl-check "map-tsl"
+                    (= (sl-render "examples/v2-map.shen" "tsl")
+                       (sl-read "tests/golden/map.tsl.logic")))
           (sl-check "map-query-chc"
                     (= (hd (shenlogic.query-file "examples/v2-map.shen"
                              "(map double [1 2])" "[2 4]" "chc"))

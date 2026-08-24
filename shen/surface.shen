@@ -142,7 +142,7 @@
         (if (surface.cons-form? X)
             (surface.list-term X)
             (cn "(" (cn (surface.terms X) ")")))
-        (str X)))
+        (if (= X []) "()" (str X))))
 
 (define surface.terms
   [] -> ""

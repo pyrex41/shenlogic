@@ -33,18 +33,49 @@
 (define tsl.type-definition
   [definition Name none _ _] _ -> [error [sl-t001 tsl-signature-required Name]]
   [definition Name [signature Args Result] Clauses _] Table ->
-    (let Arrow (tsl.first-arrow [Result | Args])
-      (if (not (= Arrow none))
-          [error [sl-t002 tsl-higher-order-type Name (hd (tl Arrow))]]
-          (let Bad (tsl.first-illformed [Result | Args])
-            (if (not (= Bad none))
-                [error [sl-t005 tsl-unsupported Name [type (hd (tl Bad))]]]
-                (let TCs (tsl.type-clauses Name Clauses Args Result Table [])
-                  (if (tsl.ok? TCs)
-                      [ok [t-def Name (tsl.tvars-list Args [Result])
-                           Args Result (hd (tl TCs))]]
-                      TCs))))))
+    (if (or (tsl.arrow-type? Result) (tsl.nested-arrow? Args))
+        [error [sl-t002 tsl-higher-order-type Name Result]]
+        (let IArgs (map (/. T (tsl.internal-type T)) Args)
+          (let IResult (tsl.internal-type Result)
+            (let Bad (tsl.first-illformed [IResult | IArgs])
+              (if (not (= Bad none))
+                  [error [sl-t005 tsl-unsupported Name [type (hd (tl Bad))]]]
+                  (let TCs (tsl.type-clauses Name Clauses IArgs IResult
+                             Table [])
+                    (if (tsl.ok? TCs)
+                        [ok [t-def Name (tsl.tvars-list IArgs [IResult])
+                             IArgs IResult (hd (tl TCs))]]
+                        TCs)))))))
   [definition Name _ _ _] _ -> [error [sl-t001 tsl-signature-required Name]])
+
+\\ Rank-1 only: an argument may itself be an arrow type, but no arrow may
+\\ appear inside an arrow's components or under a type former.
+(define tsl.nested-arrow?
+  [] -> false
+  [T | Ts] ->
+    (if (if (shenlogic.ast.arrow-type? T)
+            (tsl.any-arrow-deep?
+              (append (shenlogic.ast.arrow-args T)
+                      [(shenlogic.ast.arrow-result T)]))
+            (tsl.arrow-deep? T))
+        true
+        (tsl.nested-arrow? Ts)))
+
+(define tsl.any-arrow-deep?
+  [] -> false
+  [T | Ts] -> (if (tsl.arrow-deep? T) true (tsl.any-arrow-deep? Ts)))
+
+(define tsl.arrow-deep?
+  T -> (if (cons? T) (tsl.arrow-elements? T) false))
+
+\\ Internal representation: raw arrow lists become [arrow ArgTypes Result].
+(define tsl.internal-type
+  [list T] -> [list (tsl.internal-type T)]
+  T -> (if (shenlogic.ast.arrow-type? T)
+           [arrow (map (/. U (tsl.internal-type U))
+                       (shenlogic.ast.arrow-args T))
+                  (tsl.internal-type (shenlogic.ast.arrow-result T))]
+           T))
 
 (define tsl.ok?
   [ok | _] -> true
@@ -73,11 +104,18 @@
 
 (define tsl.wellformed-type?
   [list T] -> (tsl.wellformed-type? T)
+  [arrow Args Result] -> (if (tsl.wellformed-types? Args)
+                             (tsl.wellformed-type? Result)
+                             false)
   T -> (if (cons? T)
            false
            (if (variable? T)
                true
                (element? T [number boolean symbol string value]))))
+
+(define tsl.wellformed-types?
+  [] -> true
+  [T | Ts] -> (if (tsl.wellformed-type? T) (tsl.wellformed-types? Ts) false))
 
 (define tsl.tvars-list
   Args Rest -> (tsl.tvars-collect (append Args Rest) []))
@@ -88,9 +126,15 @@
 
 (define tsl.tvars-type
   [list T] Acc -> (tsl.tvars-type T Acc)
+  [arrow Args Result] Acc ->
+    (tsl.tvars-type Result (tsl.tvars-types Args Acc))
   T Acc -> (if (and (variable? T) (not (element? T Acc)))
                [T | Acc]
                Acc))
+
+(define tsl.tvars-types
+  [] Acc -> Acc
+  [T | Ts] Acc -> (tsl.tvars-types Ts (tsl.tvars-type T Acc)))
 
 (define tsl.type-clauses
   _ [] _ _ _ Acc -> [ok (reverse Acc)]
@@ -165,6 +209,7 @@
   [e-let X A B] -> [X | (append (tsl.expr-vars A) (tsl.expr-vars B))]
   [e-ctor _ Args] -> (tsl.exprs-vars Args)
   [e-call _ Args] -> (tsl.exprs-vars Args)
+  [e-apply F Args] -> [F | (tsl.exprs-vars Args)]
   [e-prim _ Args] -> (tsl.exprs-vars Args)
   [e-if C T F] -> (append (tsl.expr-vars C)
                     (append (tsl.expr-vars T) (tsl.expr-vars F)))
@@ -289,6 +334,22 @@
                           R))
                     [error [sl-t005 tsl-unsupported (hd Ctx)
                             [call-arity F]]])))))
+  [e-apply F Args] Env Table Subst Counter Ctx ->
+    (let TF (tsl.env-lookup F Env)
+      (if (= TF not-found)
+          [error [sl-t005 tsl-unsupported (hd Ctx) [unbound F]]]
+          (let RT (tsl.resolve (hd (tl TF)) Subst)
+            (if (= (hd RT) arrow)
+                (if (= (length Args) (length (hd (tl RT))))
+                    (let R (tsl.type-checks Args (hd (tl RT)) Env Table
+                             Subst Counter Ctx)
+                      (if (tsl.ok? R)
+                          [ok (hd (tl (tl RT))) (hd (tl R)) (hd (tl (tl R)))]
+                          R))
+                    [error [sl-t005 tsl-unsupported (hd Ctx)
+                            [apply-arity F]]])
+                [error [sl-t004 tsl-type-mismatch (hd Ctx) (hd (tl Ctx))
+                        arrow RT]]))))
   [e-prim Op Args] Env Table Subst Counter Ctx ->
     (tsl.type-prim Op Args Env Table Subst Counter Ctx)
   [e-if C T F] Env Table Subst Counter Ctx ->
@@ -356,7 +417,21 @@
     [error [sl-t005 tsl-unsupported (hd Ctx) [primitive-arity Op]]])
 
 \\ Type-check E against the expected type; returns [ok Subst Counter].
+\\ A defined function's name expected at an arrow type denotes the function
+\\ (symbol encoding); its signature is instantiated fresh.
 (define tsl.type-check
+  [e-value S] Expected Env Table Subst Counter Ctx ->
+    (let Sig (tsl.env-lookup S Table)
+      (let Inst (tsl.instantiate (hd (tl Sig)) Counter)
+        (let U (tsl.unify [arrow (hd Inst) (hd (tl Inst))] Expected Subst)
+          (if (tsl.ok? U)
+              [ok (hd (tl U)) (hd (tl (tl Inst)))]
+              [error [sl-t004 tsl-type-mismatch (hd Ctx) (hd (tl Ctx))
+                      (tsl.resolve Expected Subst)
+                      [arrow (hd Inst) (hd (tl Inst))]]]))))
+    where (and (symbol? S)
+               (and (tsl.arrow-expected? Expected Subst)
+                    (tsl.signed-function? S Table)))
   E Expected Env Table Subst Counter Ctx ->
     (let R (tsl.type-expr E Env Table Subst Counter Ctx)
       (if (tsl.ok? R)
@@ -367,6 +442,14 @@
                         (tsl.resolve Expected (hd (tl (tl R))))
                         (tsl.resolve (hd (tl R)) (hd (tl (tl R))))]]))
           R)))
+
+(define tsl.arrow-expected?
+  Expected Subst -> (let W (tsl.walk Expected Subst)
+                      (if (cons? W) (= (hd W) arrow) false)))
+
+(define tsl.signed-function?
+  S Table -> (let F (tsl.env-lookup S Table)
+               (if (= F not-found) false (not (= (hd (tl F)) none)))))
 
 (define tsl.type-checks
   [] [] _ _ Subst Counter _ -> [ok Subst Counter]
@@ -401,7 +484,18 @@
                         [ok [[N T] | Subst]])
   T [tv N] Subst -> (tsl.unify1 [tv N] T Subst)
   [list A] [list B] Subst -> (tsl.unify A B Subst)
+  [arrow As R] [arrow Bs S] Subst ->
+    (if (= (length As) (length Bs))
+        (let U (tsl.unify-lists As Bs Subst)
+          (if (tsl.ok? U) (tsl.unify R S (hd (tl U))) U))
+        [error [clash [arrow As R] [arrow Bs S]]])
   T1 T2 Subst -> (if (= T1 T2) [ok Subst] [error [clash T1 T2]]))
+
+(define tsl.unify-lists
+  [] [] Subst -> [ok Subst]
+  [A | As] [B | Bs] Subst ->
+    (let U (tsl.unify A B Subst)
+      (if (tsl.ok? U) (tsl.unify-lists As Bs (hd (tl U))) U)))
 
 (define tsl.walk
   [tv N] Subst -> (let F (tsl.env-lookup N Subst)
@@ -414,7 +508,16 @@
 (define tsl.occurs1?
   N [tv N] _ -> true
   N [list T] Subst -> (tsl.occurs? N T Subst)
+  N [arrow As R] Subst -> (if (tsl.occurs-any? N As Subst)
+                              true
+                              (tsl.occurs? N R Subst))
   _ _ _ -> false)
+
+(define tsl.occurs-any?
+  _ [] _ -> false
+  N [T | Ts] Subst -> (if (tsl.occurs? N T Subst)
+                          true
+                          (tsl.occurs-any? N Ts Subst)))
 
 \\ Deep resolution; unification variables that survive a whole clause carry
 \\ no constraint and default to value.
@@ -424,6 +527,8 @@
 (define tsl.resolve1
   [tv _] _ -> value
   [list T] Subst -> [list (tsl.resolve T Subst)]
+  [arrow As R] Subst -> [arrow (map (/. T (tsl.resolve T Subst)) As)
+                               (tsl.resolve R Subst)]
   T _ -> T)
 
 (define tsl.resolve-env
@@ -441,11 +546,13 @@
 \\ replaced by fresh unification variables.
 (define tsl.instantiate
   [signature Args Result] Counter ->
-    (let TVars (tsl.tvars-list Args [Result])
-      (let Map (tsl.fresh-map TVars Counter)
-        [(tsl.substitute-types Args (hd Map))
-         (tsl.substitute-type Result (hd Map))
-         (hd (tl Map))])))
+    (let IArgs (map (/. T (tsl.internal-type T)) Args)
+      (let IResult (tsl.internal-type Result)
+        (let TVars (tsl.tvars-list IArgs [IResult])
+          (let Map (tsl.fresh-map TVars Counter)
+            [(tsl.substitute-types IArgs (hd Map))
+             (tsl.substitute-type IResult (hd Map))
+             (hd (tl Map))])))))
 
 (define tsl.fresh-map
   Vars Counter -> (tsl.fresh-map-acc Vars Counter []))
@@ -461,6 +568,8 @@
 
 (define tsl.substitute-type
   [list T] Map -> [list (tsl.substitute-type T Map)]
+  [arrow As R] Map -> [arrow (tsl.substitute-types As Map)
+                             (tsl.substitute-type R Map)]
   T Map -> (if (variable? T)
                (let F (tsl.env-lookup T Map)
                  (if (= F not-found) T (hd (tl F))))

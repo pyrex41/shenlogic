@@ -115,6 +115,7 @@
 (define tsl.type-uses?
   [list T] list -> true
   [list T] Sort -> (tsl.type-uses? T Sort)
+  [arrow As R] Sort -> (tsl.types-use? (append As [R]) Sort)
   T Sort -> (= T Sort))
 
 (define tsl.uses-if?
@@ -138,6 +139,7 @@
   [e-if _ _ _] -> true
   [e-ctor _ Args] -> (tsl.exprs-use-if? Args)
   [e-call _ Args] -> (tsl.exprs-use-if? Args)
+  [e-apply _ Args] -> (tsl.exprs-use-if? Args)
   [e-prim _ Args] -> (tsl.exprs-use-if? Args)
   [e-let _ A B] -> (tsl.exprs-use-if? [A B])
   [e-and A B] -> (tsl.exprs-use-if? [A B])
@@ -284,9 +286,57 @@
 
 (define tsl.definedness-section
   TDefs Totality Program ->
-    (let Text (tsl.definedness-defs TDefs Totality
-                (tsl.singleton-sccs Program))
+    (let Text (@s (tsl.apply-definedness TDefs Totality Program)
+                  (tsl.definedness-defs TDefs Totality
+                    (tsl.singleton-sccs Program)))
       (if (= Text "") "" (@s (tsl.nl) Text))))
+
+\\ defined-apply-N axioms: applying a named total function is defined on all
+\\ arguments; applying a named unknown function is defined exactly on its
+\\ definedness domain.  defined-apply-N is otherwise unconstrained, matching
+\\ the intended reading exists r. sl.apply-N(F, x̄, r).
+(define tsl.apply-definedness
+  TDefs Totality Program ->
+    (let Arities (tsl.program-apply-arities Program)
+      (if (= Arities [])
+          ""
+          (@s "; definedness: function application" (tsl.nl)
+              (tsl.apply-definedness-arities Arities TDefs Totality)))))
+
+(define tsl.program-apply-arities
+  [program Defs] -> (rules.apply-arities Defs)
+  _ -> [])
+
+(define tsl.apply-defined-name
+  N -> (intern (cn "defined-apply-" (str N))))
+
+(define tsl.apply-definedness-arities
+  [] _ _ -> ""
+  [N | Ns] TDefs Totality ->
+    (@s (tsl.apply-definedness-defs N TDefs Totality)
+        (tsl.apply-definedness-arities Ns TDefs Totality)))
+
+(define tsl.apply-definedness-defs
+  _ [] _ -> ""
+  N [[t-def F _ Args _ TCs] | Ds] Totality ->
+    (@s (if (= (length Args) N)
+            (tsl.line (tsl.apply-definedness-axiom N F Args Totality))
+            "")
+        (tsl.apply-definedness-defs N Ds Totality)))
+
+(define tsl.apply-definedness-axiom
+  N F Args Totality ->
+    (let Vars (tsl.value-vars "X" 0 N)
+      (let Terms [[e-value F] | (tsl.var-terms Vars)]
+        (tsl.quantify (tsl.typed-bindings Vars Args)
+          (if (tsl.total-function? F Totality)
+              [f-defined (tsl.apply-defined-name N) Terms]
+              [f-iff [f-defined (tsl.defined-name F) (tsl.var-terms Vars)]
+                     [f-defined (tsl.apply-defined-name N) Terms]])))))
+
+(define tsl.typed-bindings
+  [] [] -> []
+  [X | Xs] [T | Ts] -> [[X T] | (tsl.typed-bindings Xs Ts)])
 
 (define tsl.singleton-sccs
   [program Defs] ->
@@ -674,6 +724,10 @@
             (if (tsl.total-function? F Totality)
                 []
                 [[f-defined (tsl.defined-name F) Args]]))
+  [e-apply F Args] Totality ->
+    (append (tsl.obligations-list Args Totality)
+            [[f-defined (tsl.apply-defined-name (length Args))
+              [[e-var F] | Args]]])
   [e-if C T F] Totality ->
     (append (tsl.obligations C Totality)
       (let OT (tsl.obligations T Totality)
@@ -724,6 +778,7 @@
   [e-let X A B] -> (tsl.subst-expr (tsl.inline B) [[X (tsl.inline A)]])
   [e-ctor Tag Args] -> [e-ctor Tag (map (/. E (tsl.inline E)) Args)]
   [e-call F Args] -> [e-call F (map (/. E (tsl.inline E)) Args)]
+  [e-apply F Args] -> [e-apply F (map (/. E (tsl.inline E)) Args)]
   [e-prim Op Args] -> [e-prim Op (map (/. E (tsl.inline E)) Args)]
   [e-if C T F] -> [e-if (tsl.inline C) (tsl.inline T) (tsl.inline F)]
   [e-and A B] -> [e-and (tsl.inline A) (tsl.inline B)]
@@ -737,6 +792,8 @@
                      (if (= F not-found) [e-var X] (hd (tl F))))
   [e-ctor Tag Args] Env -> [e-ctor Tag (tsl.subst-exprs Args Env)]
   [e-call F Args] Env -> [e-call F (tsl.subst-exprs Args Env)]
+  [e-apply F Args] Env -> [e-apply (tsl.subst-head F Env)
+                                   (tsl.subst-exprs Args Env)]
   [e-prim Op Args] Env -> [e-prim Op (tsl.subst-exprs Args Env)]
   [e-if C T F] Env -> [e-if (tsl.subst-expr C Env) (tsl.subst-expr T Env)
                             (tsl.subst-expr F Env)]
@@ -755,6 +812,17 @@
   X [[X _] | Rest] -> (tsl.env-drop X Rest)
   X [B | Rest] -> [B | (tsl.env-drop X Rest)])
 
+\\ An apply head is a variable; substitution can rename it or replace it by
+\\ a named function.
+(define tsl.subst-head
+  F Env -> (let R (tsl.env-lookup F Env)
+             (if (= R not-found) F (tsl.head-name (hd (tl R)) F))))
+
+(define tsl.head-name
+  [e-var G] _ -> G
+  [e-value S] _ -> S
+  _ F -> F)
+
 (define tsl.subst-formulas
   [] _ -> []
   [F | Fs] Env -> [(tsl.subst-formula F Env) | (tsl.subst-formulas Fs Env)])
@@ -767,6 +835,8 @@
   [f-and Fs] Env -> [f-and (tsl.subst-formulas Fs Env)]
   [f-or Fs] Env -> [f-or (tsl.subst-formulas Fs Env)]
   [f-imp F G] Env -> [f-imp (tsl.subst-formula F Env)
+                            (tsl.subst-formula G Env)]
+  [f-iff F G] Env -> [f-iff (tsl.subst-formula F Env)
                             (tsl.subst-formula G Env)]
   [f-defined N Ts] Env -> [f-defined N (tsl.subst-exprs Ts Env)]
   [f-pred P Ts] Env -> [f-pred P (tsl.subst-exprs Ts Env)]
@@ -795,6 +865,7 @@
   [f-and Fs] -> (tsl.formulas-vars Fs)
   [f-or Fs] -> (tsl.formulas-vars Fs)
   [f-imp F G] -> (append (tsl.formula-vars F) (tsl.formula-vars G))
+  [f-iff F G] -> (append (tsl.formula-vars F) (tsl.formula-vars G))
   [f-defined _ Ts] -> (tsl.exprs-vars Ts)
   [f-pred _ Ts] -> (tsl.exprs-vars Ts)
   [f-some _ F] -> (tsl.formula-vars F)
@@ -805,8 +876,14 @@
 \\ --- type-variable quantification ----------------------------------------
 
 (define tsl.quantify-types
-  F -> (let TVars (tsl.unique-formulas (tsl.formula-tvars F))
+  F -> (let TVars (tsl.unique-keep-first (tsl.formula-tvars F) [])
          (if (= TVars []) F [f-all-types TVars F])))
+
+(define tsl.unique-keep-first
+  [] _ -> []
+  [X | Xs] Seen -> (if (element? X Seen)
+                       (tsl.unique-keep-first Xs Seen)
+                       [X | (tsl.unique-keep-first Xs [X | Seen])]))
 
 (define tsl.formula-tvars
   [f-some Bs F] -> (append (tsl.bindings-tvars Bs) (tsl.formula-tvars F))
@@ -815,13 +892,15 @@
   [f-and Fs] -> (tsl.formulas-tvars Fs)
   [f-or Fs] -> (tsl.formulas-tvars Fs)
   [f-imp F G] -> (append (tsl.formula-tvars F) (tsl.formula-tvars G))
+  [f-iff F G] -> (append (tsl.formula-tvars F) (tsl.formula-tvars G))
   [f-all-pred _ Args F] -> (append (tsl.types-tvars Args)
                                    (tsl.formula-tvars F))
   _ -> [])
 
 (define tsl.types-tvars
   [] -> []
-  [T | Ts] -> (append (tsl.tvars-type T []) (tsl.types-tvars Ts)))
+  [T | Ts] -> (append (reverse (tsl.tvars-type T []))
+                      (tsl.types-tvars Ts)))
 
 (define tsl.formulas-tvars
   [] -> []
@@ -829,7 +908,8 @@
 
 (define tsl.bindings-tvars
   [] -> []
-  [[_ T] | Bs] -> (append (tsl.tvars-type T []) (tsl.bindings-tvars Bs)))
+  [[_ T] | Bs] -> (append (reverse (tsl.tvars-type T []))
+                          (tsl.bindings-tvars Bs)))
 
 \\ --- rendering -----------------------------------------------------------
 
@@ -847,6 +927,8 @@
   [f-or [F]] -> (tsl.render-formula F)
   [f-or Fs] -> (@s "(or " (tsl.render-formulas Fs) ")")
   [f-imp F G] -> (@s "(" (tsl.render-formula F) " => "
+                     (tsl.render-formula G) ")")
+  [f-iff F G] -> (@s "(" (tsl.render-formula F) " <=> "
                      (tsl.render-formula G) ")")
   [f-defined N []] -> (@s "(" (str N) ")")
   [f-defined N Ts] -> (@s "(" (str N) " " (tsl.render-terms Ts) ")")
@@ -881,6 +963,7 @@
   [e-ctor Tag Args] -> (@s "(" (str Tag) " " (tsl.render-terms Args) ")")
   [e-call F []] -> (@s "(" (str F) ")")
   [e-call F Args] -> (@s "(" (str F) " " (tsl.render-terms Args) ")")
+  [e-apply F Args] -> (@s "(" (str F) " " (tsl.render-terms Args) ")")
   [e-prim Op Args] -> (@s "(" (str Op) " " (tsl.render-terms Args) ")")
   [e-if C T F] -> (@s "(if " (tsl.render-term C) " " (tsl.render-term T)
                       " " (tsl.render-term F) ")")
@@ -900,4 +983,9 @@
 
 (define tsl.render-type
   [list T] -> (@s "(list " (tsl.render-type T) ")")
+  [arrow Args R] -> (@s "(" (tsl.render-arrow-parts (append Args [R])) ")")
   T -> (str T))
+
+(define tsl.render-arrow-parts
+  [T] -> (tsl.render-type T)
+  [T | Ts] -> (@s (tsl.render-type T) " --> " (tsl.render-arrow-parts Ts)))

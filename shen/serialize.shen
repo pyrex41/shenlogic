@@ -36,7 +36,9 @@
            (serialize-string X)
            (if (cons? X)
                (serialize-list X)
-               (serialize-symbol X))))
+               (if (= X [])
+                   "()"
+                   (serialize-symbol X)))))
 
 (define serialize-list
   [] -> "()"

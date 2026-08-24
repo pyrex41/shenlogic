@@ -83,6 +83,8 @@
       (let Ex (termination.first-unexhaustive Members)
         (if (not (= Ex none))
             [fail [non-exhaustive (hd (tl Ex))]]
+            (if (termination.uses-apply? Members)
+                [fail [callee function-parameter]]
             (let Out (termination.first-unready-callee Members C Statuses)
               (if (not (= Out none))
                   [fail [callee (hd (tl Out))]]
@@ -94,7 +96,17 @@
                                       (= (length C) 1))
                           (if (= Scheme none)
                               [fail [no-descent]]
-                              [ok Scheme]))))))))))
+                              [ok Scheme])))))))))))
+
+\\ Any use of a function parameter blocks a totality proof: the applied
+\\ argument is arbitrary.  Refining this to totality-relative-to-parameters
+\\ is future work.
+(define termination.uses-apply?
+  [] -> false
+  [[definition _ _ Cs _] | Ds] ->
+    (if (= (rules.apply-arities-clauses Cs) [])
+        (termination.uses-apply? Ds)
+        true))
 
 (define termination.defs-in
   _ [] -> []
