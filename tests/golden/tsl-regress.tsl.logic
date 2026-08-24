@@ -27,15 +27,15 @@
 (all X : number ((defined-drops X) => (defined-loop X)))
 (all P : (number => o) ((all X : number ((defined-loop X) => (P X))) => (all X : number ((defined-drops X) => (P X)))))
 ; definedness: pick
-(all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => (defined-pick X)))
-(all X : number ((defined-pick X) => (and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0))))))
-(all P : (number => o) ((all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => (P X))) => (all X : number ((defined-pick X) => (P X)))))
+(all X : number ((and (defined-loop X) (or (~ (< X 0)) (defined-loop X))) => (defined-pick X)))
+(all X : number ((defined-pick X) => (and (defined-loop X) (or (~ (< X 0)) (defined-loop X)))))
+(all P : (number => o) ((all X : number ((and (defined-loop X) (or (~ (< X 0)) (defined-loop X))) => (P X))) => (all X : number ((defined-pick X) => (P X)))))
 
 ; equations
 (all E0 : number (all R : (list number) (all Y : number ((> E0 Y) => ((exl (cons E0 R) Y) = 1)))))
 (all L : (list number) (all E0 : number ((~ (some E1 : number (some R : (list number) (and (L = (cons E1 R)) (> E1 E0))))) => ((exl L E0) = 2))))
 (all X : number ((defined-loop X) => ((loop X) = (loop X))))
 (all X : number ((defined-loop X) => ((drops X) = 5)))
-(all X : number ((and (defined-loop X) (or (and (< X 0) (defined-loop X)) (~ (< X 0)))) => ((pick X) = (if (< X 0) (loop X) 7))))
+(all X : number ((and (defined-loop X) (or (~ (< X 0)) (defined-loop X))) => ((pick X) = (if (< X 0) (loop X) 7))))
 (all W0 : type (all W1 : W0 ((wv W1) = 7)))
 (all A : type (all E0 : A ((sh E0) = 7)))

@@ -922,14 +922,19 @@
     (append (tsl.obligations-list Args Totality)
             [[f-defined (tsl.apply-defined-name (length Args))
               [[e-var F] | Args]]])
+  \\ Obligations shared by both branches hold whichever way the condition
+  \\ goes (excluded middle), so they factor out; only the residues stay
+  \\ branch-conditional, and an empty residue collapses its side of the
+  \\ disjunction (C or (~C and R) is equivalent to C or R).
   [e-if C T F] Totality ->
     (append (tsl.obligations C Totality)
-      (let OT (tsl.obligations T Totality)
-        (let OF (tsl.obligations F Totality)
-          (if (and (= OT []) (= OF []))
-              []
-              [[f-or [(tsl.flatten-and [(tsl.formula-of C) | OT])
-                      (tsl.flatten-and [[f-not (tsl.formula-of C)] | OF])]]]))))
+      (let OT (tsl.unique-formulas (tsl.obligations T Totality))
+        (let OF (tsl.unique-formulas (tsl.obligations F Totality))
+          (let Common (tsl.inter-formulas OT OF)
+            (let Rt (tsl.minus-formulas OT Common)
+              (let Rf (tsl.minus-formulas OF Common)
+                (append Common
+                  (tsl.branch-residue (tsl.formula-of C) Rt Rf))))))))
   [e-and A B] Totality ->
     (append (tsl.obligations A Totality)
       (let OB (tsl.obligations B Totality)
@@ -949,6 +954,25 @@
             (tsl.obligations
               (tsl.subst-expr B [[X (tsl.inline A)]]) Totality))
   _ _ -> [])
+
+(define tsl.inter-formulas
+  [] _ -> []
+  [F | Fs] Gs -> (if (element? F Gs)
+                     [F | (tsl.inter-formulas Fs Gs)]
+                     (tsl.inter-formulas Fs Gs)))
+
+(define tsl.minus-formulas
+  [] _ -> []
+  [F | Fs] Gs -> (if (element? F Gs)
+                     (tsl.minus-formulas Fs Gs)
+                     [F | (tsl.minus-formulas Fs Gs)]))
+
+(define tsl.branch-residue
+  _ [] [] -> []
+  C [] Rf -> [[f-or [C (tsl.flatten-and Rf)]]]
+  C Rt [] -> [[f-or [[f-not C] (tsl.flatten-and Rt)]]]
+  C Rt Rf -> [[f-or [(tsl.flatten-and [C | Rt])
+                     (tsl.flatten-and [[f-not C] | Rf])]]])
 
 (define tsl.obligations-list
   [] _ -> []

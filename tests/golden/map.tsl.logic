@@ -30,9 +30,9 @@
 (all A : type (all B : type (all P : ((A --> B) => ((list A) => o)) ((and (all F : (A --> B) (P F ())) (all F : (A --> B) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (P F Y)) => (P F (cons X Y))))))) => (all F : (A --> B) (all A1 : (list A) ((defined-map F A1) => (P F A1))))))))
 ; definedness: filter
 (all A : type (all F : (A --> boolean) (defined-filter F ())))
-(all A : type (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (or (and ((F X) = true) (defined-filter F Y)) (and (~ ((F X) = true)) (defined-filter F Y)))) => (defined-filter F (cons X Y)))))))
-(all A : type (all F : (A --> boolean) (all A1 : (list A) ((defined-filter F A1) => (or (A1 = ()) (some X : A (some Y : (list A) (and (A1 = (cons X Y)) (defined-apply-1 F X) (or (and ((F X) = true) (defined-filter F Y)) (and (~ ((F X) = true)) (defined-filter F Y)))))))))))
-(all A : type (all P : ((A --> boolean) => ((list A) => o)) ((and (all F : (A --> boolean) (P F ())) (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (or (and ((F X) = true) (P F Y)) (and (~ ((F X) = true)) (P F Y)))) => (P F (cons X Y))))))) => (all F : (A --> boolean) (all A1 : (list A) ((defined-filter F A1) => (P F A1)))))))
+(all A : type (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (defined-filter F Y)) => (defined-filter F (cons X Y)))))))
+(all A : type (all F : (A --> boolean) (all A1 : (list A) ((defined-filter F A1) => (or (A1 = ()) (some X : A (some Y : (list A) (and (A1 = (cons X Y)) (defined-apply-1 F X) (defined-filter F Y)))))))))
+(all A : type (all P : ((A --> boolean) => ((list A) => o)) ((and (all F : (A --> boolean) (P F ())) (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (P F Y)) => (P F (cons X Y))))))) => (all F : (A --> boolean) (all A1 : (list A) ((defined-filter F A1) => (P F A1)))))))
 ; definedness: twice
 (all A : type (all F : (A --> A) (all X : A ((and (defined-apply-1 F X) (defined-apply-1 F (F X))) => (defined-twice F X)))))
 (all A : type (all F : (A --> A) (all X : A ((defined-twice F X) => (and (defined-apply-1 F X) (defined-apply-1 F (F X)))))))
@@ -44,5 +44,5 @@
 (all A : type (all B : type (all F : (A --> B) ((map F ()) = ()))))
 (all A : type (all B : type (all F : (A --> B) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (defined-map F Y)) => ((map F (cons X Y)) = (cons (F X) (map F Y)))))))))
 (all A : type (all F : (A --> boolean) ((filter F ()) = ())))
-(all A : type (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (or (and ((F X) = true) (defined-filter F Y)) (and (~ ((F X) = true)) (defined-filter F Y)))) => ((filter F (cons X Y)) = (if (F X) (cons X (filter F Y)) (filter F Y))))))))
+(all A : type (all F : (A --> boolean) (all X : A (all Y : (list A) ((and (defined-apply-1 F X) (defined-filter F Y)) => ((filter F (cons X Y)) = (if (F X) (cons X (filter F Y)) (filter F Y))))))))
 (all A : type (all F : (A --> A) (all X : A ((and (defined-apply-1 F X) (defined-apply-1 F (F X))) => ((twice F X) = (F (F X)))))))
