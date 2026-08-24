@@ -682,11 +682,14 @@
 \\ type variables so generated names never shadow them.
 (define tsl.clause-conditions
   [t-clause _ Ps G B Bindings] Prior Totality TVars ->
-    (append (tsl.exclusion-formulas Prior Ps
-              (append TVars (map (/. X (hd X)) Bindings)) Totality)
-      (append (tsl.guard-formula G)
-              (tsl.unique-formulas
-                (tsl.obligations B Totality)))))
+    (let Excl (tsl.exclusion-formulas Prior Ps
+                (append TVars (map (/. X (hd X)) Bindings)) Totality)
+      (let Guard (tsl.guard-formula G)
+        (append Excl
+          (append Guard
+            (tsl.simp-obligations
+              (tsl.unique-formulas (tsl.obligations B Totality))
+              (append Excl Guard)))))))
 
 (define tsl.implies
   [] F -> F
@@ -706,6 +709,121 @@
   [F | Fs] -> (if (element? F Fs)
                   (tsl.unique-formulas Fs)
                   [F | (tsl.unique-formulas Fs)]))
+
+\\ --- contextual reduction --------------------------------------------------
+\\
+\\ A small, ordered, size-decreasing reducer applied to definedness
+\\ obligation lists under the assumptions already in force (the clause's
+\\ exclusions, guard, and earlier obligations).  Every rule is a classical
+\\ equivalence; deletion happens only when the context syntactically
+\\ contains the formula (or its negation), so unknown entailments leave the
+\\ formula untouched.  Axiom blocks, quantifier binders, exclusions, and
+\\ guards are never altered.  Rules:
+\\   N1 units: true/false absorb or vanish in and/or.
+\\   N2 flatten: nested and/or splice into their parent; singletons open.
+\\   N3 double negation: ~~F is F.
+\\   N4 duplicates: a conjunct/disjunct already present is dropped.
+\\   A1 context: a conjunct entailed by (context + earlier survivors) is
+\\      dropped; one refuted there makes the conjunction false.
+\\   A2 complements: F alongside ~F makes a conjunction false and a
+\\      disjunction true.
+\\   A4 disjunct context: disjunct i is reduced under the negations of the
+\\      earlier surviving disjuncts (A or B is A or (B under ~A)); one that
+\\      the context proves makes the disjunction true.  Order is preserved.
+\\ Termination: structural recursion; each fold step consumes one member.
+
+(define tsl.neg
+  [f-not F] -> F
+  F -> [f-not F])
+
+(define tsl.simp
+  [f-and Fs] Ctx -> (tsl.rebuild-and (tsl.simp-conjuncts Fs Ctx []))
+  [f-or Fs] Ctx -> (tsl.rebuild-or (tsl.simp-disjuncts Fs Ctx []))
+  [f-not F] Ctx -> (tsl.simp-not (tsl.simp F []))
+  [f-imp A B] Ctx -> [f-imp (tsl.simp A Ctx) (tsl.simp B Ctx)]
+  [f-iff A B] Ctx -> [f-iff (tsl.simp A Ctx) (tsl.simp B Ctx)]
+  [f-some Bs F] Ctx -> [f-some Bs (tsl.simp F (tsl.ctx-drop Bs Ctx))]
+  [f-all Bs F] Ctx -> [f-all Bs (tsl.simp F (tsl.ctx-drop Bs Ctx))]
+  [f-all-types Vs F] Ctx -> [f-all-types Vs (tsl.simp F Ctx)]
+  F Ctx -> (if (element? F Ctx)
+               [f-true]
+               (if (element? (tsl.neg F) Ctx) [f-false] F)))
+
+(define tsl.simp-not
+  [f-not G] -> G
+  [f-true] -> [f-false]
+  [f-false] -> [f-true]
+  F -> [f-not F])
+
+\\ Facts mentioning a rebound name cannot cross the binder.
+(define tsl.ctx-drop
+  Bs Ctx -> (tsl.ctx-drop-names (tsl.binding-names Bs) Ctx))
+
+(define tsl.ctx-drop-names
+  _ [] -> []
+  Names [F | Fs] ->
+    (if (tsl.mentions-any? (tsl.formula-vars F) Names)
+        (tsl.ctx-drop-names Names Fs)
+        [F | (tsl.ctx-drop-names Names Fs)]))
+
+(define tsl.mentions-any?
+  [] _ -> false
+  [V | Vs] Names -> (if (element? V Names)
+                        true
+                        (tsl.mentions-any? Vs Names)))
+
+(define tsl.simp-conjuncts
+  [] _ Acc -> (reverse Acc)
+  [F | Fs] Ctx Acc ->
+    (let F1 (tsl.simp F (append Ctx (reverse Acc)))
+      (if (= F1 [f-true])
+          (tsl.simp-conjuncts Fs Ctx Acc)
+          (if (cons? (tsl.and-members F1))
+              (tsl.simp-conjuncts (append (tsl.and-members F1) Fs) Ctx Acc)
+              (if (or (= F1 [f-false])
+                      (element? (tsl.neg F1) (append Ctx (reverse Acc))))
+                  [[f-false]]
+                  (if (element? F1 (append Ctx (reverse Acc)))
+                      (tsl.simp-conjuncts Fs Ctx Acc)
+                      (tsl.simp-conjuncts Fs Ctx [F1 | Acc])))))))
+
+(define tsl.and-members
+  [f-and Gs] -> Gs
+  _ -> not-an-and)
+
+(define tsl.or-members
+  [f-or Gs] -> Gs
+  _ -> not-an-or)
+
+(define tsl.simp-disjuncts
+  [] _ Acc -> (reverse Acc)
+  [F | Fs] Ctx Acc ->
+    (let Ctx1 (append Ctx (map (/. G (tsl.neg G)) (reverse Acc)))
+      (let F1 (tsl.simp F Ctx1)
+        (if (or (= F1 [f-false]) (element? (tsl.neg F1) Ctx1))
+            (tsl.simp-disjuncts Fs Ctx Acc)
+            (if (cons? (tsl.or-members F1))
+                (tsl.simp-disjuncts (append (tsl.or-members F1) Fs) Ctx Acc)
+                (if (or (= F1 [f-true]) (element? F1 Ctx1))
+                    [[f-true]]
+                    (if (element? F1 (reverse Acc))
+                        (tsl.simp-disjuncts Fs Ctx Acc)
+                        (tsl.simp-disjuncts Fs Ctx [F1 | Acc]))))))))
+
+(define tsl.rebuild-and
+  [] -> [f-true]
+  [F] -> F
+  Fs -> (if (element? [f-false] Fs) [f-false] [f-and Fs]))
+
+(define tsl.rebuild-or
+  [] -> [f-false]
+  [F] -> F
+  Fs -> (if (element? [f-true] Fs) [f-true] [f-or Fs]))
+
+\\ Reduce an obligation list under fixed assumptions; assumptions are
+\\ never deleted, only used.
+(define tsl.simp-obligations
+  Obligs Ctx -> (tsl.simp-conjuncts Obligs Ctx []))
 
 (define tsl.pattern-terms
   [] -> []
@@ -763,10 +881,12 @@
                                       (tsl.obligations B Totality))
                                     Env)
                                   [])
-                    (let All (append Conds
-                               (append (tsl.subst-formulas Exts Env)
-                                 (append Guard Obligs)))
-                      (tsl.close-over All Bindings Env Avoid))))))))))
+                    (let Assumed (append Conds
+                                   (append (tsl.subst-formulas Exts Env)
+                                     Guard))
+                      (let All (append Assumed
+                                 (tsl.simp-obligations Obligs Assumed))
+                        (tsl.close-over All Bindings Env Avoid)))))))))))
 
 \\ Rename any prior-clause variable that collides with a current-clause
 \\ name (or with another renamed variable) to a fresh E-name.
