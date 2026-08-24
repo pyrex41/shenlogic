@@ -11,7 +11,7 @@
 ; definedness: box-name
 (all W0 : value (defined-box-name (box W0)))
 (all W0 : value (all W1 : value (defined-box-name (pair W0 W1))))
-(all A0 : value ((defined-box-name A0) => (or (some W0 : value (A0 = (box W0))) (and (~ (some W0 : value (A0 = (box W0)))) (some W0 : value (some W1 : value (A0 = (pair W0 W1))))))))
+(all A0 : value ((defined-box-name A0) => (or (some W0 : value (A0 = (box W0))) (some W0 : value (some W1 : value (A0 = (pair W0 W1)))))))
 (all P : (value => o) ((and (all W0 : value (P (box W0))) (all W0 : value (all W1 : value (P (pair W0 W1))))) => (all A0 : value ((defined-box-name A0) => (P A0)))))
 
 ; equations

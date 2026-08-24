@@ -519,19 +519,18 @@
   [F] -> F
   Fs -> [f-or Fs])
 
+\\ Each case carries its priority exclusions specialized against the case
+\\ clause's own patterns (inside tsl.applicable), so constructor-disjoint
+\\ priors are pruned exactly as in the equations section.
 (define tsl.inversion-cases
   [] _ _ _ _ -> []
   [TC | TCs] Prior Univ Totality TVars ->
     (let Avoid (append TVars (tsl.binding-names Univ))
-      (let Exts (tsl.exclusion-formulas (reverse Prior)
-                  (tsl.binding-patterns Univ) Avoid Totality)
-        (let App (tsl.applicable TC (tsl.binding-patterns Univ)
-                   Avoid true Totality)
-          (append
-            (if (= App disjoint)
-                []
-                [(tsl.flatten-and (append Exts [(hd (tl App))]))])
-            (tsl.inversion-cases TCs [TC | Prior] Univ Totality TVars))))))
+      (let App (tsl.applicable TC (reverse Prior)
+                 (tsl.binding-patterns Univ) Avoid true Totality)
+        (append
+          (if (= App disjoint) [] [(hd (tl App))])
+          (tsl.inversion-cases TCs [TC | Prior] Univ Totality TVars)))))
 
 (define tsl.flatten-and
   [F] -> F
@@ -723,42 +722,51 @@
 (define tsl.exclusion-formulas
   [] _ _ _ -> []
   [TC | TCs] CurrentPs Avoid Totality ->
-    (let App (tsl.applicable TC CurrentPs Avoid false Totality)
+    (let App (tsl.applicable TC [] CurrentPs Avoid false Totality)
       (if (= App disjoint)
           (tsl.exclusion-formulas TCs CurrentPs Avoid Totality)
           [[f-not (hd (tl App))] |
            (tsl.exclusion-formulas TCs CurrentPs Avoid Totality)])))
 
-\\ Whether a prior clause can fire on the current clause's arguments.
-\\ Returns disjoint (statically impossible, justified by the constructor
+\\ Whether a clause can fire on the given argument patterns.  Returns
+\\ disjoint (statically impossible, justified by the constructor
 \\ disjointness axioms and literal distinctness) or [formula F], where F
-\\ existentially binds the prior clause's own unresolved variables.
+\\ existentially binds the clause's own unresolved variables.  Priors are
+\\ earlier clauses whose exclusions are specialized against this clause's
+\\ patterns and carried inside the same closure (used by the inversion
+\\ axiom; the equations path passes [] because tsl.clause-conditions emits
+\\ exclusions at the top level).
 \\
-\\ The prior clause is alpha-renamed away from the current clause's names
-\\ FIRST: substitution and existential closure are by symbol name, so a
-\\ shared name would otherwise be captured and corrupt the exclusion.
+\\ The clause is alpha-renamed away from the current names FIRST:
+\\ substitution and existential closure are by symbol name, so a shared
+\\ name would otherwise be captured and corrupt the formula.
 (define tsl.applicable
-  TC CurrentPs Avoid WithOblig Totality ->
-    (tsl.applicable1 (tsl.alpha-prior TC Avoid) CurrentPs Avoid WithOblig
-      Totality))
+  TC Priors CurrentPs Avoid WithOblig Totality ->
+    (tsl.applicable1 (tsl.alpha-prior TC Avoid) Priors CurrentPs Avoid
+      WithOblig Totality))
 
 (define tsl.applicable1
-  [t-clause I Ps G B Bindings] CurrentPs Avoid WithOblig Totality ->
+  [t-clause I Ps G B Bindings] Priors CurrentPs Avoid WithOblig Totality ->
     (let M (tsl.match-pairs Ps CurrentPs [] [])
       (if (= M disjoint)
           disjoint
           (let Env (hd (tl M))
-            (let Conds (tsl.subst-formulas (reverse (hd (tl (tl M)))) Env)
-              (let Guard (tsl.subst-formulas
-                           (tsl.guard-formula G) Env)
-                (let Obligs (if WithOblig
-                                (tsl.subst-formulas
-                                  (tsl.unique-formulas
-                                    (tsl.obligations B Totality))
-                                  Env)
-                                [])
-                  (let All (append Conds (append Guard Obligs))
-                    (tsl.close-over All Bindings Env Avoid)))))))))
+            (let Exts (tsl.exclusion-formulas Priors Ps
+                        (append Avoid (tsl.binding-names Bindings))
+                        Totality)
+              (let Conds (tsl.subst-formulas (reverse (hd (tl (tl M)))) Env)
+                (let Guard (tsl.subst-formulas
+                             (tsl.guard-formula G) Env)
+                  (let Obligs (if WithOblig
+                                  (tsl.subst-formulas
+                                    (tsl.unique-formulas
+                                      (tsl.obligations B Totality))
+                                    Env)
+                                  [])
+                    (let All (append Conds
+                               (append (tsl.subst-formulas Exts Env)
+                                 (append Guard Obligs)))
+                      (tsl.close-over All Bindings Env Avoid))))))))))
 
 \\ Rename any prior-clause variable that collides with a current-clause
 \\ name (or with another renamed variable) to a fresh E-name.
