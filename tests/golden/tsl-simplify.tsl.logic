@@ -1,0 +1,50 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: depth unknown (non-exhaustive clauses in depth)
+; totality: spin unknown (no descent measure found)
+; totality: pick2 unknown (depends on spin)
+; totality: both-branches unknown (depends on spin)
+; totality: mixed unknown (depends on spin)
+
+; list axioms
+(all A : type (all X : A (all Y : (list A) (all Z : A (all W : (list A) (((cons X Y) = (cons Z W)) => (and (X = Z) (Y = W))))))))
+(all A : type (all X : A (all Y : (list A) (~ ((cons X Y) = ())))))
+(all A : type (all P : ((list A) => o) ((and (P ()) (all X : A (all Y : (list A) ((P Y) => (P (cons X Y)))))) => (all L : (list A) (P L)))))
+; boolean bridge axioms
+(all X : number (all Y : number ((< X Y) => ((< X Y) = true))))
+(all X : number (all Y : number ((~ (< X Y)) => ((< X Y) = false))))
+; conditional axioms
+(all A : type (all X : A (all Y : A ((if true X Y) = X))))
+(all A : type (all X : A (all Y : A ((if false X Y) = Y))))
+
+; definedness: depth
+(defined-depth ())
+(all R : (list (list number)) ((defined-depth R) => (defined-depth (cons () R))))
+(all X : number (all Y : (list number) (all R : (list (list number)) ((defined-depth (cons Y R)) => (defined-depth (cons (cons X Y) R))))))
+(all A0 : (list (list number)) ((defined-depth A0) => (or (A0 = ()) (some R : (list (list number)) (and (A0 = (cons () R)) (defined-depth R))) (some X : number (some Y : (list number) (some R : (list (list number)) (and (A0 = (cons (cons X Y) R)) (defined-depth (cons Y R)))))))))
+(all P : ((list (list number)) => o) ((and (P ()) (all R : (list (list number)) ((P R) => (P (cons () R)))) (all X : number (all Y : (list number) (all R : (list (list number)) ((P (cons Y R)) => (P (cons (cons X Y) R))))))) => (all A0 : (list (list number)) ((defined-depth A0) => (P A0)))))
+; definedness: spin
+(all X : number ((defined-spin X) => (defined-spin X)))
+(all X : number ((defined-spin X) => (defined-spin X)))
+(all P : (number => o) ((all X : number ((P X) => (P X))) => (all X : number ((defined-spin X) => (P X)))))
+; definedness: pick2
+(all X : number ((defined-spin X) => (defined-pick2 X)))
+(all X : number ((defined-pick2 X) => (defined-spin X)))
+(all P : (number => o) ((all X : number ((defined-spin X) => (P X))) => (all X : number ((defined-pick2 X) => (P X)))))
+; definedness: both-branches
+(all X : number ((defined-spin X) => (defined-both-branches X)))
+(all X : number ((defined-both-branches X) => (defined-spin X)))
+(all P : (number => o) ((all X : number ((defined-spin X) => (P X))) => (all X : number ((defined-both-branches X) => (P X)))))
+; definedness: mixed
+(all X : number ((and (defined-spin X) (or (< X 0) (defined-pick2 X))) => (defined-mixed X)))
+(all X : number ((defined-mixed X) => (and (defined-spin X) (or (< X 0) (defined-pick2 X)))))
+(all P : (number => o) ((all X : number ((and (defined-spin X) (or (< X 0) (defined-pick2 X))) => (P X))) => (all X : number ((defined-mixed X) => (P X)))))
+
+; equations
+((depth ()) = 0)
+(all R : (list (list number)) ((defined-depth R) => ((depth (cons () R)) = (depth R))))
+(all X : number (all Y : (list number) (all R : (list (list number)) ((defined-depth (cons Y R)) => ((depth (cons (cons X Y) R)) = (+ 1 (depth (cons Y R))))))))
+(all X : number ((defined-spin X) => ((spin X) = (spin X))))
+(all X : number ((defined-spin X) => ((pick2 X) = (if (< X 0) (spin X) 7))))
+(all X : number ((defined-spin X) => ((both-branches X) = (if (< X 0) (- 0 (spin X)) (+ 1 (spin X))))))
+(all X : number ((and (defined-spin X) (or (< X 0) (defined-pick2 X))) => ((mixed X) = (if (< X 0) (spin X) (+ (spin X) (pick2 X))))))

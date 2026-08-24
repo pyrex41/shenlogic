@@ -247,6 +247,41 @@
           (sl-check "tsl-regress-tsl"
                     (= (sl-render "examples/tsl-regress.shen" "tsl")
                        (sl-read "tests/golden/tsl-regress.tsl.logic")))
+          (sl-check "tsl-simplify-tsl"
+                    (= (sl-render "examples/tsl-simplify.shen" "tsl")
+                       (sl-read "tests/golden/tsl-simplify.tsl.logic")))
+          (sl-check "simp-unit-context-drop"
+                    (= (tsl.simp-obligations
+                         [[f-defined d [[e-var vx]]]
+                          [f-or [[f-not [f-cmp < [e-var vx] [e-value 0]]]
+                                 [f-defined d [[e-var vx]]]]]]
+                         [])
+                       [[f-defined d [[e-var vx]]]]))
+          (sl-check "simp-unit-complement"
+                    (= (tsl.simp [f-and [[f-defined d [[e-var vx]]]
+                                         [f-not [f-defined d [[e-var vx]]]]]]
+                                 [])
+                       [f-false]))
+          (sl-check "simp-unit-units-flatten"
+                    (= (tsl.simp [f-and [[f-true]
+                                         [f-and [[f-defined d [[e-var vx]]]
+                                                 [f-true]]]]]
+                                 [])
+                       [f-defined d [[e-var vx]]]))
+          (sl-check "simp-unit-fail-closed"
+                    (= (tsl.simp [f-or [[f-cmp < [e-var vx] [e-value 0]]
+                                        [f-defined d [[e-var vx]]]]]
+                                 [])
+                       [f-or [[f-cmp < [e-var vx] [e-value 0]]
+                              [f-defined d [[e-var vx]]]]]))
+          (sl-check "simp-unit-idempotent"
+                    (let Once (tsl.simp [f-and [[f-defined d [[e-var vx]]]
+                                                [f-or [[f-cmp < [e-var vx]
+                                                        [e-value 0]]
+                                                       [f-defined g
+                                                        [[e-var vx]]]]]]]
+                                        [])
+                      (= (tsl.simp Once []) Once)))
           (sl-check "term-nonlinear-unknown"
                     (= (termination.classify
                          (shenlogic.program "tests/fixtures/term-nonlinear.shen"))

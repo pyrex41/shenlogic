@@ -95,6 +95,25 @@ For a program `P`, `T(P)` contains:
    disjointness already decides them), then the guard, then the body's
    definedness obligations, implying the clause equation.
 
+## Simplification
+
+Emitted formulas are reduced before printing by a small, ordered,
+size-decreasing set of classical equivalences (see the rule catalog in
+`shen/tsl.shen`): unit and flattening laws, double negation, duplicate
+elimination, and contextual deletion — a definedness obligation is
+dropped when the clause's exclusions, guard, and earlier obligations
+already syntactically contain it (a disjunct, dually, is reduced under
+the negations of its earlier siblings). Deletion is fail-closed: an
+entailment the reducer cannot establish syntactically leaves the
+formula unchanged. Shared branch obligations of a conditional factor
+out by excluded middle at emission, and inversion-case exclusions are
+specialized against the case clause's own patterns so
+constructor-disjoint priors are pruned (justified by the co-emitted
+disjointness axioms). The reducer never alters axiom blocks, quantifier
+binders, exclusion or guard conjuncts, or any term; determinism comes
+from a fixed left-to-right strategy over lists, so output remains
+byte-identical across Shen hosts.
+
 ## Partiality discipline
 
 A classical equation between terms asserts denotation; an unguarded
