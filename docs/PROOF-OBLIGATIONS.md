@@ -54,6 +54,7 @@ semantic obligations. Its remaining proof obligations are:
     guard-choice space, and structural edit cost plus canonical tie-breaking
     selects the advertised minimum among enumerated survivors.
 
-Proof development proceeds in that order: patterns, nonrecursive expressions,
-ordered clauses, direct recursion, then mutual recursion and leastness. Errors
-and effects remain outside v2 until they have explicit logical result objects.
+Proof development for obligations 1-7 proceeds in that order: patterns,
+nonrecursive expressions, ordered clauses, direct recursion, then mutual
+recursion and leastness. Obligations 8-13 build on 1-7. Errors and effects
+remain outside v2 until they have explicit logical result objects.

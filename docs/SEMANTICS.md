@@ -38,7 +38,11 @@ constructors. The Rule IR retains control-flow paths and lowers
 free-constructor matching to explicit `decompose`/`not-tag` premises. CHC
 lowers the closed Value ADT to SMT-LIB datatypes. THF emits typed higher-order
 axioms for the intended full model, including simultaneous SCC leastness;
-neither backend silently treats an unknown solver result as a proof.
+neither backend silently treats an unknown solver result as a proof. Backend
+name cleaning is not injective (`-`, `.`, and space all map to `_`), so both
+backends reject a program whose distinct relations, constructors, or literals
+would merge after cleaning (`chc-name-collision`, `thf-name-collision`)
+instead of emitting a silently conflated theory.
 
 All modes exclude floating point, division, partial primitives, effects,
 mutable state, I/O, exceptions, dynamic loading, Prolog/backtracking,

@@ -38,8 +38,8 @@ Diagnostics retain stable form and clause indexes.
 `graph` is the readable least-graph specification. Constructor patterns lower
 to explicit `decompose`/`not-tag` paths, and ordered fallback is represented
 by those paths rather than opaque host matching. `chc` emits SMT-LIB
-fixedpoint rules over the closed Value algebra;
-`unknown` is never treated as a proof. `thf` emits a full-model TPTP typed
+fixedpoint rules over the closed Value algebra, and a solver's `unknown`
+is never treated as a proof. `thf` emits a full-model TPTP typed
 higher-order specification, including simultaneous relation quantifiers and
 leastness obligations required by mutual recursion. `tsl` emits the typed
 second-order equational theory of [TSL-LOGIC.md](TSL-LOGIC.md): constructor
@@ -48,9 +48,10 @@ clause equations. It consumes the normalized program (declared signatures
 are required) alongside the theory, and is not yet part of the certificate
 bundle.
 
-Backends reject unresolved polymorphism, unknown calls, unsupported arithmetic,
-and constructs outside the v2 capability matrix. No backend silently changes
-the operational meaning of the decision tree.
+Backends reject unresolved polymorphism, unknown calls, unsupported
+arithmetic, post-cleaning name collisions, and constructs outside the v2
+capability matrix. No backend silently changes the operational meaning of
+the decision tree.
 
 Programs with function parameters additively extend the theory within the
 frozen v2 grammar: normalized bodies may contain `[e-apply Var Args]`

@@ -32,10 +32,10 @@ negative twin), so equations like `((positive? X) = (> X 0))` have
 derivational force.
 
 Formulas: `true`, `false`, `(t = u)`, integer comparisons
-`(< > <= >=)`, `defined-f` atoms, predicate-variable applications,
-`(~ F)`, `(and F ...)`, `(or F ...)`, `(F => G)`,
-`(all X : T F)`, `(some X : T F)`, `(all A : type F)`, and
-`(all P : (T => o) F)`.
+`(< > <= >=)`, `defined-f` and `defined-apply-N` atoms,
+predicate-variable applications, `(~ F)`, `(and F ...)`, `(or F ...)`,
+`(F => G)`, `(F <=> G)`, `(all X : T F)`, `(some X : T F)`,
+`(all A : type F)`, and `(all P : (T => o) F)`.
 
 Every function symbol `f` carries the declared Shen signature; every term
 is well-typed under it. `tsl` refuses programs it cannot type
@@ -52,7 +52,8 @@ The system is classical natural deduction over this sorted language:
   variable's type;
 - `all`-introduction/elimination for type variables: from
   `(all A : type F)` infer `F[A := T]` for any closed type `T` built from
-  the sorts and `list`;
+  the sorts and `list` (not from `-->`: the fragment is rank-1, so type
+  variables never instantiate to function types);
 - second-order `all`-elimination for predicate variables, restricted to
   *formula comprehension*: `(all P : (T => o) F)` may be instantiated
   with any formula-with-a-hole of the matching type. This schema reading
@@ -129,6 +130,32 @@ The intended correspondence, relative to the graph semantics
 This correspondence is stated, not yet mechanized; the Lean obligations
 that would discharge it are tracked in `docs/PROOF-OBLIGATIONS.md`.
 
+## Function parameters
+
+A variable of function type may be applied — `((F X) = ...)` renders
+application directly, and `(all F : (A --> B) ...)` quantifies over the
+function space of the model. A defined function name written where an
+arrow type is expected denotes that function; its signature instantiates
+at the use.
+
+Each applied arity `N` introduces `defined-apply-N`, read as a
+type-indexed schema — one predicate per instantiation of
+`forall A1..AN, B. (A1 --> ... --> B) => A1 => ... => AN => o` — rather
+than a single monomorphic predicate constant; occurrences at different
+arrow sorts are instances of that scheme. The intended reading of each
+instance is `exists r. sl.apply-N(F, x̄, r)` against the
+defunctionalized graph theory (`docs/SEMANTICS.md`). The emitted axioms
+constrain `defined-apply-N` on named functions: a total function is
+defined-apply everywhere on its argument sorts, and an unknown function
+`f` satisfies `(defined-f x̄) <=> (defined-apply-N f x̄)`. Every
+application site in a body contributes a `defined-apply-N` obligation to
+its clause's antecedent, since the applied argument is arbitrary.
+
+Equality between function-sorted terms is rejected by the typing pass
+(`sl-t005 function-equality`): the graph theory's function values are
+names (intensional), while the typed model's function space is
+extensional, and equating them would let the two readings diverge.
+
 ## Current limits
 
 - User constructors are monomorphic at `value`; polymorphic user ADTs
@@ -136,28 +163,8 @@ that would discharge it are tracked in `docs/PROOF-OBLIGATIONS.md`.
 - Programs mixing sorts in one position (a literal and a constructor
   pattern on the same argument) have no typed reading and are rejected.
 - `let` is inlined by substitution; pathological duplication is
-  accepted.
-- Any function using a parameter application is classified unknown;
+  accepted. Definedness obligations of a `let` binding are collected
+  unconditionally: `let` is strict even when the bound variable is
+  unused.
+- Any function that applies a function parameter is classified unknown;
   totality relative to the parameter's totality is future work.
-
-## Function parameters
-
-A variable of function type may be applied — `((F X) = ...)` renders
-application directly, and `(all F : (A --> B) ...)` quantifies over the
-function space of the model. Each applied arity `N` introduces
-`defined-apply-N`, read as a type-indexed schema — one predicate per
-instantiation of `forall A1..AN, B. (A1 --> ... --> B) => A1 => ... =>
-AN => o` — rather than a single monomorphic predicate constant; its
-occurrences at different arrow sorts are instances of that scheme. The
-intended reading of each instance is `exists r. sl.apply-N(F, x̄, r)`
-against the defunctionalized graph theory (`docs/SEMANTICS.md`).
-Equality between function-sorted terms is rejected by the typing pass
-(`sl-t005 function-equality`): the graph theory's function values are
-names (intensional), while the typed model's function space is
-extensional, and equating them would let the two readings diverge. The emitted axioms constrain it on named
-functions: total functions are defined-apply everywhere; unknown
-functions satisfy `(defined-f x̄) <=> (defined-apply-N f x̄)`. Every
-application site in a body contributes a `defined-apply-N` obligation to
-its clause's antecedent, since the applied argument is arbitrary. A
-defined function name written where an arrow type is expected denotes
-that function; its signature instantiates at the use.

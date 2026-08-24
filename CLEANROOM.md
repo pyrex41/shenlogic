@@ -12,8 +12,11 @@ The implementation makes its own explicit choices:
   tree before logical rules are generated.
 - Recursive definitions are represented by evaluation graphs and simultaneous
   leastness conditions.
-- Unsupported effects, errors, partial operations, and higher-order behavior
-  are rejected until their operational outcomes have a declared logical model.
+- Unsupported effects, errors, and partial operations are rejected until
+  their operational outcomes have a declared logical model. Function
+  parameters gained such a model (defunctionalization by name, see
+  docs/SEMANTICS.md) and are now supported; lambdas and partial
+  application remain rejected on the same principle.
 - Canonical tagged S-expressions provide the versioned intermediate format.
 
 The only compatibility promise currently made is the surface factorial example

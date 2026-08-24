@@ -19,7 +19,10 @@ For each supported Shen function, ShenLogic can produce:
 
 The graph, CHC, and THF outputs use an explicit result relation. This preserves
 partiality: if a Shen call does not terminate, the generated graph does not
-assign it a result.
+assign it a result. The `tsl` output preserves partiality equationally: calls
+to functions a conservative termination check cannot prove total are guarded
+by `defined-` antecedents, so a divergent definition never makes the theory
+inconsistent.
 
 ## Requirements
 
