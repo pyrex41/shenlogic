@@ -158,6 +158,9 @@
           (sl-check "factorial-thf"
                     (= (sl-render "examples/factorial.shen" "thf")
                        (sl-read "tests/golden/factorial.thf")))
+          (sl-check "mutual-thf"
+                    (= (sl-render "examples/mutual.shen" "thf")
+                       (sl-read "tests/golden/mutual.thf")))
           (sl-check "factorial-tsl"
                     (= (sl-render "examples/factorial.shen" "tsl")
                        (sl-read "tests/golden/factorial.tsl.logic")))

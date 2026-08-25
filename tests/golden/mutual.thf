@@ -1,0 +1,42 @@
+% ShenLogic typed value specification
+thf(sl_value_type,type,value: $tType).
+thf(sl_ctor_int_type,type,sl_ctor_int: ($int > value)).
+thf(sl_ctor_true_type,type,sl_ctor_true: (value)).
+thf(sl_ctor_false_type,type,sl_ctor_false: (value)).
+thf(sl_ctor_symbol_type,type,sl_ctor_symbol: ($i > value)).
+thf(sl_ctor_string_type,type,sl_ctor_string: ($i > value)).
+thf(sl_ctor_nil_type,type,sl_ctor_nil: (value)).
+thf(sl_ctor_cons_type,type,sl_ctor_cons: (value > value > value)).
+thf(sl_rel_even_q_type,type,sl_rel_even_q: (value > value > $o)).
+thf(sl_rel_odd_q_type,type,sl_rel_odd_q: (value > value > $o)).
+thf(sl_ctor_int_injective,axiom,(! [V_X0:$int,V_Y0:$int] : (((sl_ctor_int @ V_X0) = (sl_ctor_int @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_symbol_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) = (sl_ctor_symbol @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_string_injective,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_string @ V_X0) = (sl_ctor_string @ V_Y0)) => (V_X0 = V_Y0)))).
+thf(sl_ctor_cons_injective,axiom,(! [V_X0:value,V_X1:value,V_Y0:value,V_Y1:value] : (((sl_ctor_cons @ V_X0 @ V_X1) = (sl_ctor_cons @ V_Y0 @ V_Y1)) => ((V_X0 = V_Y0) & (V_X1 = V_Y1))))).
+thf(sl_ctor_int_true_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_true)))).
+thf(sl_ctor_int_false_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_false)))).
+thf(sl_ctor_int_symbol_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_int_string_disjoint,axiom,(! [V_X0:$int,V_Y0:$i] : (((sl_ctor_int @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_int_nil_disjoint,axiom,(! [V_X0:$int] : (((sl_ctor_int @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_int_cons_disjoint,axiom,(! [V_X0:$int,V_Y1:value,V_Y0:value] : (((sl_ctor_int @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_true_false_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_false)))).
+thf(sl_ctor_true_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_true_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_true != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_true_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_true != sl_ctor_nil)))).
+thf(sl_ctor_true_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_true != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_false_symbol_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_symbol @ V_Y0))))).
+thf(sl_ctor_false_string_disjoint,axiom,(! [V_Y0:$i] : ((sl_ctor_false != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_false_nil_disjoint,axiom,(! [Dummy:value] : ((sl_ctor_false != sl_ctor_nil)))).
+thf(sl_ctor_false_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_false != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_symbol_string_disjoint,axiom,(! [V_X0:$i,V_Y0:$i] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_string @ V_Y0))))).
+thf(sl_ctor_symbol_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_symbol @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_symbol_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_symbol @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_string_nil_disjoint,axiom,(! [V_X0:$i] : (((sl_ctor_string @ V_X0) != sl_ctor_nil)))).
+thf(sl_ctor_string_cons_disjoint,axiom,(! [V_X0:$i,V_Y1:value,V_Y0:value] : (((sl_ctor_string @ V_X0) != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_ctor_nil_cons_disjoint,axiom,(! [V_Y1:value,V_Y0:value] : ((sl_ctor_nil != (sl_ctor_cons @ V_Y0 @ V_Y1))))).
+thf(sl_value_induction,axiom,(! [P:(value > $o)] : ((((! [V_A0:$int] : (P @ (sl_ctor_int @ V_A0))) & ((P @ sl_ctor_true) & ((P @ sl_ctor_false) & ((! [V_A0:$i] : (P @ (sl_ctor_symbol @ V_A0))) & ((! [V_A0:$i] : (P @ (sl_ctor_string @ V_A0))) & ((P @ sl_ctor_nil) & ((! [V_A0:value,V_A1:value] : (((P @ V_A0) & (P @ V_A1)) => (P @ (sl_ctor_cons @ V_A0 @ V_A1)))) & $true)))))))) => (! [X:value] : (P @ X))))).
+thf(sl_rule_even_q_underc0_underp0,axiom,(! [V_even_q_undera0:value] : (((V_even_q_undera0 = (sl_ctor_int @ 0)) => (sl_rel_even_q @ V_even_q_undera0 @ sl_ctor_true))))).
+thf(sl_rule_even_q_underc1_underp1,axiom,(! [V_even_q_undera0:value,I_even_q_undera0:$int,V_R0:value] : ((((V_even_q_undera0 != (sl_ctor_int @ 0)) & ((V_even_q_undera0 = (sl_ctor_int @ I_even_q_undera0)) & (sl_rel_odd_q @ (sl_ctor_int @ $difference(I_even_q_undera0,1)) @ V_R0))) => (sl_rel_even_q @ V_even_q_undera0 @ V_R0))))).
+thf(sl_rule_odd_q_underc0_underp0,axiom,(! [V_odd_q_undera0:value] : (((V_odd_q_undera0 = (sl_ctor_int @ 0)) => (sl_rel_odd_q @ V_odd_q_undera0 @ sl_ctor_false))))).
+thf(sl_rule_odd_q_underc1_underp1,axiom,(! [V_odd_q_undera0:value,I_odd_q_undera0:$int,V_R0:value] : ((((V_odd_q_undera0 != (sl_ctor_int @ 0)) & ((V_odd_q_undera0 = (sl_ctor_int @ I_odd_q_undera0)) & (sl_rel_even_q @ (sl_ctor_int @ $difference(I_odd_q_undera0,1)) @ V_R0))) => (sl_rel_odd_q @ V_odd_q_undera0 @ V_R0))))).
+thf(sl_least_odd_q_even_q,axiom,(! [R_odd_q:(value > value > $o),R_even_q:(value > value > $o)] : ((((! [V_even_q_undera0:value] : (((V_even_q_undera0 = (sl_ctor_int @ 0)) => (R_even_q @ V_even_q_undera0 @ sl_ctor_true)))) & ((! [V_even_q_undera0:value,I_even_q_undera0:$int,V_R0:value] : ((((V_even_q_undera0 != (sl_ctor_int @ 0)) & ((V_even_q_undera0 = (sl_ctor_int @ I_even_q_undera0)) & (R_odd_q @ (sl_ctor_int @ $difference(I_even_q_undera0,1)) @ V_R0))) => (R_even_q @ V_even_q_undera0 @ V_R0)))) & ((! [V_odd_q_undera0:value] : (((V_odd_q_undera0 = (sl_ctor_int @ 0)) => (R_odd_q @ V_odd_q_undera0 @ sl_ctor_false)))) & (! [V_odd_q_undera0:value,I_odd_q_undera0:$int,V_R0:value] : ((((V_odd_q_undera0 != (sl_ctor_int @ 0)) & ((V_odd_q_undera0 = (sl_ctor_int @ I_odd_q_undera0)) & (R_even_q @ (sl_ctor_int @ $difference(I_odd_q_undera0,1)) @ V_R0))) => (R_odd_q @ V_odd_q_undera0 @ V_R0))))))) => ((! [V_A0:value,V_Result:value] : (((sl_rel_odd_q @ V_A0 @ V_Result) => (R_odd_q @ V_A0 @ V_Result)))) & (! [V_A0:value,V_Result:value] : (((sl_rel_even_q @ V_A0 @ V_Result) => (R_even_q @ V_A0 @ V_Result))))))))).

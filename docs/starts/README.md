@@ -10,7 +10,7 @@ Do not invent theorems. Next code is the named commit in each file.
 | 3 | 03-expressions.md | no Lean Expr extend yet |
 | 4 | 04-rules.md | no factorial rule witness yet |
 | 5 | 05-leastness.md | v2-mutual graph golden on this branch |
-| 6 | 06-thf.md | no mutual.thf yet |
+| 6 | 06-thf.md | mutual.thf golden on this branch |
 | 7 | 07-definedness.md | `d.shen` on this branch; axioms tautological |
 | 8 | 08-apply.md | no ho-apply-scc yet |
 | 9 | 09-tsl.md | no mutual.tsl.logic / Formula AST yet |
