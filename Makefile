@@ -112,8 +112,8 @@ build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
 		shen/certificate.shen shen/surface.shen shen/graph.shen shen/chc.shen \
 		shen/thf.shen shen/typing.shen shen/linarith.shen \
 		shen/termination.shen shen/tsl.shen shen/prove.shen \
-		shen/oracle.shen shen/repair.shen shen/workflow.shen shenlogic.shen \
-		shen/cli.shen > $@
+		shen/oracle.shen shen/lpc.shen shen/repair.shen shen/workflow.shen \
+		shenlogic.shen shen/cli.shen > $@
 
 shellcheck:
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic tests/repair-cli.sh tests/prove-cli.sh; else echo 'SKIP: shellcheck is not installed'; fi

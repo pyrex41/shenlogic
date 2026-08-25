@@ -259,6 +259,14 @@
           (sl-check "linarith-eval-countup"
                     (= (sl-eval "examples/tsl-linarith.shen" "(countup -3)")
                        [value 1]))
+          (sl-check "lpc-lists-golden"
+                    (= (sl-render "examples/lpc-lists.shen" "lpc")
+                       (sl-read "tests/golden/lpc-lists.lpc.shen")))
+          (sl-check "lpc-artifact-reads"
+                    (cons? (read-from-string-unprocessed
+                             (sl-render "examples/lpc-lists.shen" "lpc"))))
+          (sl-check "lpc-rejects-arithmetic"
+                    (sl-translation-rejected? "examples/factorial.shen" "lpc"))
           (sl-check "oracle-unit-positive"
                     (= (oracle.call-system-S [] [[cons 1 []] : [list number]])
                        true))

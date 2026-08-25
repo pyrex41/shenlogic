@@ -6,7 +6,7 @@
   [_ | Rest] -> Rest)
 
 (define shenlogic.cli-usage
-  _ -> (output "shenlogic translate FILE --format surface|graph|slir|chc|thf|tsl [-o OUT]~%shenlogic check FILE [--backend graph|chc|thf]~%shenlogic eval FILE EXPR [--fuel N]~%shenlogic certify FILE --out DIR~%shenlogic query FILE EXPR EXPECTED --backend chc|thf~%shenlogic repair FILE --logic EDITED.tsl.logic --spec SPEC [--max-cost N] [--max-candidates N] [--fuel N] [--optimizer prolog] [--write]~%shenlogic prove FILE CONJECTURE [--induct VAR] [-o OUT]~%shenlogic oracle FILE~%shenlogic test~%shenlogic --version~%"))
+  _ -> (output "shenlogic translate FILE --format surface|graph|slir|chc|thf|tsl|lpc [-o OUT]~%shenlogic check FILE [--backend graph|chc|thf]~%shenlogic eval FILE EXPR [--fuel N]~%shenlogic certify FILE --out DIR~%shenlogic query FILE EXPR EXPECTED --backend chc|thf~%shenlogic repair FILE --logic EDITED.tsl.logic --spec SPEC [--max-cost N] [--max-candidates N] [--fuel N] [--optimizer prolog] [--write]~%shenlogic prove FILE CONJECTURE [--induct VAR] [-o OUT]~%shenlogic oracle FILE~%shenlogic test~%shenlogic --version~%"))
 
 (define shenlogic.cli-value
   [] _ Default -> Default

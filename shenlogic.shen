@@ -17,6 +17,7 @@
 (load "shen/tsl.shen")
 (load "shen/prove.shen")
 (load "shen/oracle.shen")
+(load "shen/lpc.shen")
 (load "shen/repair.shen")
 (load "shen/workflow.shen")
 
@@ -55,6 +56,7 @@
   "chc" _ Theory -> (shenlogic.unwrap (shenlogic.chc.render Theory nonlinear))
   "thf" _ Theory -> (shenlogic.unwrap (shenlogic.thf.render Theory full-model))
   "tsl" Program Theory -> (shenlogic.unwrap (shenlogic.tsl.render Program Theory))
+  "lpc" Program Theory -> (shenlogic.unwrap (shenlogic.lpc.render Program Theory))
   Format _ _ -> (error (cn "unsupported format: " Format)))
 
 (define shenlogic.check-file
