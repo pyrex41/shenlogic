@@ -98,7 +98,11 @@ is checker-side and fail-closed, and never alters equation shapes,
 guards, exclusions, axiom blocks, or quantifier structure. The intended
 definedness reading is `defined-f(ā) iff exists v. f$(ā,v)` against the
 graph semantics above; that correspondence is a stated obligation, not a
-mechanized theorem.
+mechanized theorem. Shen's own sequent-calculus type checker (System S)
+serves as a differential typing oracle: `shenlogic oracle` asks it,
+clause by clause, whether the raw source inhabits the declared types
+under the signatures' hypotheses, cross-checking the tsl typing pass
+against the host kernel's.
 
 The intended adequacy theorem is:
 

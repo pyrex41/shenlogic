@@ -93,6 +93,22 @@ models — is pinned down in [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md).
   SMT-LIB Horn query for a ground claim; Z3 answers `sat` for facts the
   program actually computes and `unsat` for facts it does not — including
   through higher-order calls like `(map double [1 2]) = [2 4]`.
+- **Prove quantified theorems automatically.** `shenlogic prove` takes a
+  conjecture, instantiates the list induction schema at it, and hands
+  the theory to Z3:
+
+  ```sh
+  ./bin/shenlogic prove examples/tsl-lists.shen \
+    '(all A : type (all X : (list A) (all Y : (list A) (all Z : (list A)
+       ((append2 (append2 X Y) Z) = (append2 X (append2 Y Z)))))))' \
+    --induct X
+  # proved
+  ```
+
+  The human contribution reduces to stating the conjecture and picking
+  the induction variable; `sat`, timeout, or `unknown` all fail closed.
+  Conjectures over functions not proven total are rejected before any
+  solver runs.
 - **Prove properties against specifications.** The emitted equations,
   induction schemas, and definedness axioms are a proof-ready
   axiomatization. They describe what the code does, not what its author
@@ -107,7 +123,12 @@ models — is pinned down in [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md).
 - **A second, executable opinion.** The built-in evaluator is the
   semantic oracle for every translation decision, and the whole suite
   runs byte-identically on three independent Shen hosts, so the logic is
-  tested against running code, not intuition.
+  tested against running code, not intuition. `shenlogic oracle` extends
+  this to types: Shen's own sequent-calculus type checker (System S) is
+  asked, clause by clause, whether it agrees with ShenLogic's typing
+  pass — the type system used as the proof system it is. Its first
+  differential finding was a real host divergence (shen-lua's kernel
+  rejects arithmetic typings the other hosts accept).
 
 ## How it works
 
@@ -133,7 +154,10 @@ Everything downstream of the reader treats source as inert data:
    - `chc`: SMT-LIB constrained Horn clauses for Z3;
    - `thf`: typed higher-order TPTP formulas;
    - `tsl`: typed second-order equations with definedness guards and
-     constructor axioms (see [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md)).
+     constructor axioms (see [docs/TSL-LOGIC.md](docs/TSL-LOGIC.md));
+   - `lpc`: the same theories in the prop syntax of Tarver's LPC proof
+     assistant, loadable by its `intro` rule (total, comparison-free
+     functions).
 
 The graph, CHC, and THF outputs preserve partiality through the result
 relation: a call that does not terminate is simply assigned no result.
@@ -289,6 +313,8 @@ Useful workflow targets are:
 ```sh
 make test             # Shen regression and golden tests
 make repair-check     # repair CLI, solver rejection, and write barrier
+make prove-check      # prove CLI: theorems prove, false conjectures fail
+make oracle-check     # System-S typing oracle (arithmetic cases)
 make shellcheck       # shell wrappers when ShellCheck is installed
 make certify          # deterministic certificate bundle
 make backend-check    # Z3 and TPTP4X checks when installed

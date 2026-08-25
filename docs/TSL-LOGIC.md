@@ -149,6 +149,25 @@ callee total. The classifier never accepts clause-order exclusions such
 as `(~ (X = 0))` as an integer bound, so `factorial` stays guarded: it
 really does diverge on negative inputs.
 
+## Automated proof (`shenlogic prove`)
+
+`prove` builds one SMT-LIB query from a conjecture in tsl syntax: the
+equations of every function the conjecture transitively mentions (all
+must be checker-proven total, so the equations are unguarded), an
+optional first-order instance of the list induction schema, and the
+negated conjecture. The induction instance is obtained by instantiating
+the second-order induction axiom with the conjecture's own matrix —
+an application of the comprehension rule above, not a new axiom; the
+human contribution is the conjecture and the induction variable. Type
+binders `(all A : type ...)` embed as uninterpreted SMT sorts (the
+schematic-generality reading), `(list T)` as one parametric datatype
+whose SMT semantics subsume the constructor axiom block, and `number`
+as `Int`. The trust boundary: `unsat` is a proof modulo the solver and
+this sort embedding (tracked as a proof obligation); `sat`, timeout,
+and `unknown` all fail closed. The conjecture must reuse the involved
+signatures' type-variable names, and functions used at conflicting
+type instantiations are outside the v1 fragment.
+
 ## Intended models and soundness reading
 
 A model interprets `number` as the integers, `boolean` as a two-element

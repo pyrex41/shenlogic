@@ -54,6 +54,13 @@ semantic obligations. Its remaining proof obligations are:
     guard-choice space, and structural edit cost plus canonical tie-breaking
     selects the advertised minimum among enumerated survivors.
 
+14. **SMT embedding faithfulness.** The `prove` embedding — signature
+    type variables as uninterpreted sorts, `number` as `Int`, `(list T)`
+    as the parametric SMT datatype — preserves the intended tsl models,
+    so a Z3 `unsat` on the emitted query entails the conjecture in every
+    intended model. The System-S oracle's agreement is evidence, not
+    proof, that the typing pass matches Shen's own type system.
+
 Proof development for obligations 1-7 proceeds in that order: patterns,
 nonrecursive expressions, ordered clauses, direct recursion, then mutual
 recursion and leastness. Obligations 8-13 build on 1-7. Errors and effects

@@ -28,6 +28,7 @@ if [ "${1:-}" = prove ]; then
   done
   if [ "$PROVE_HAS_OUT" = false ]; then
     PROVE_TEMP=$(mktemp -d "${TMPDIR:-/tmp}/shenlogic-prove.XXXXXX")
+    # shellcheck disable=SC2329  # Invoked indirectly by trap.
     prove_cleanup() {
       rm -rf "$PROVE_TEMP"
     }
