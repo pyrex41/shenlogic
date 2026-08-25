@@ -13,8 +13,9 @@ SHENLOGIC|ALL PASS
 ```
 
 Host load chatter is normalized by the suite. Canonical `.slir`, surface,
-graph, CHC, THF, and tsl files are compared byte-for-byte inside the shared
-Shen tests. A host that is unavailable is reported as skipped.
+graph, CHC, THF, tsl, lpc, and prove-query files are compared byte-for-byte
+inside the shared Shen tests. A host that is unavailable is reported as
+skipped.
 
 `make bifrost` sets `SHEN_FASL=off`. This forces shen-lua to compile the
 current nested Shen modules instead of replaying a warm user-program image,
@@ -23,7 +24,11 @@ so an edited dependency is always part of the conformance run.
 The suite covers factorial, overlapping and repeated-variable patterns,
 Fibonacci, mutual recursion, guard rejection, v2 Value/constructor cases,
 function parameters (`map`/`filter`), the tsl typed equational output and its
-soundness-regression corpus, and the portable repair API.
+soundness-regression corpus, the portable repair API, prove-query and lpc
+goldens, and the non-arithmetic System-S oracle checks. Arithmetic oracle
+checks live in `make oracle-check` outside this suite: shen-lua's kernel
+System S currently rejects arithmetic primitive typings that shen-go and
+shen-cl accept (a divergence this oracle discovered).
 `bifrost.suite.json` is the source of truth for command arguments and expected
 markers. The suite also checks the byte-canonical SLIR v2 marker.
 

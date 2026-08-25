@@ -46,7 +46,13 @@ second-order equational theory of [TSL-LOGIC.md](TSL-LOGIC.md): constructor
 axioms, definedness predicates for functions not proven total, and guarded
 clause equations. It consumes the normalized program (declared signatures
 are required) alongside the theory, and is not yet part of the certificate
-bundle.
+bundle. `lpc` re-renders checker-proven-total, comparison-free tsl
+theories in the prop grammar of Tarver's LPC proof assistant; like tsl it
+consumes the normalized program and is not a certificate artifact.
+`prove` is not a translation format: it assembles a solver query from tsl
+equations (via the same `tsl.equation-formula` construction the tsl
+renderer uses), an instantiated induction axiom, and a negated
+conjecture.
 
 Backends reject unresolved polymorphism, unknown calls, unsupported
 arithmetic, post-cleaning name collisions, and constructs outside the v2
