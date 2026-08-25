@@ -259,6 +259,18 @@
           (sl-check "linarith-eval-countup"
                     (= (sl-eval "examples/tsl-linarith.shen" "(countup -3)")
                        [value 1]))
+          (sl-check "oracle-unit-positive"
+                    (= (oracle.call-system-S [] [[cons 1 []] : [list number]])
+                       true))
+          (sl-check "oracle-unit-negative"
+                    (= (oracle.call-system-S [] [[cons 1 []] : [list symbol]])
+                       false))
+          \\ Arithmetic-involving oracle checks live in tests/oracle-arith.shen
+          \\ (make oracle-check): shen-lua's kernel System S currently rejects
+          \\ arithmetic primitive typings that shen-go and shen-cl accept.
+          (sl-check "oracle-lists"
+                    (= (shenlogic.oracle-file "examples/tsl-lists.shen")
+                       [ok 3 0]))
           (sl-check "prove-assoc-golden"
                     (let R (shenlogic.prove-file "examples/tsl-lists.shen"
                              "(all A : type (all X : (list A) (all Y : (list A) (all Z : (list A) ((append2 (append2 X Y) Z) = (append2 X (append2 Y Z)))))))"

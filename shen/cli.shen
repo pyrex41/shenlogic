@@ -42,12 +42,13 @@
                    (if (= Name "query") (shenlogic.cli-query Rest)
                    (if (= Name "repair") (shenlogic.cli-repair Rest)
                    (if (= Name "prove") (shenlogic.cli-prove Rest)
+                   (if (= Name "oracle") (shenlogic.cli-oracle Rest)
                    (if (= Name "test") (shenlogic.cli-test)
                    (if (or (= Name "version") (= Name "--version"))
                        (shenlogic.cli-version)
                    (if (or (= Name "help") (= Name "--help") (= Name "-h"))
                        (shenlogic.cli-usage false)
-                       (error (cn "shenlogic: unknown command: " Name))))))))))))))))
+                       (error (cn "shenlogic: unknown command: " Name)))))))))))))))))
 
 (define shenlogic.cli-name
   X -> (if (string? X) X (str X)))
@@ -122,6 +123,15 @@
                     (write-to-file Output (hd (tl R))))
                 (error (serialize.canonical R)))))))
   _ -> (error "shenlogic prove: expected FILE CONJECTURE"))
+
+(define shenlogic.cli-oracle
+  [File | _] ->
+    (let R (shenlogic.oracle-file File)
+      (if (= (hd R) ok)
+          (output "oracle: ~A clause typings agreed, ~A definitions skipped~%"
+            (hd (tl R)) (hd (tl (tl R))))
+          (error (serialize.canonical R))))
+  _ -> (error "shenlogic oracle: expected FILE"))
 
 (define shenlogic.cli-repair
   [File | Rest] ->

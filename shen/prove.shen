@@ -319,20 +319,27 @@
                    [])
         (let Ind (prove.induction Binders Matrix InductVar Sigs)
           (if (= (hd Ind) ok)
-              [ok (@s "; ShenLogic prove query v1" (tsl.nl)
-                      "; unsat = the tsl theory entails the conjecture"
-                      (tsl.nl)
-                      (prove.sort-decls Sorts)
-                      "(declare-datatypes ((SLList 1)) ((par (T) ((slnil) (slcons (slhd T) (sltl (SLList T)))))))"
-                      (tsl.nl)
-                      (prove.fun-decls Funs TDefs)
-                      (prove.equation-asserts Funs TDefs Tot)
+              [ok (@s (prove.header-text Sorts)
+                      (prove.theory-text Funs TDefs Tot)
                       (hd (tl Ind))
-                      "(assert (not "
-                      (prove.smt [f-all Binders Matrix] Sigs [])
-                      "))" (tsl.nl)
-                      "(check-sat)" (tsl.nl))]
+                      (prove.goal-text Binders Matrix Sigs))]
               Ind)))))
+
+(define prove.header-text
+  Sorts -> (@s "; ShenLogic prove query v1" (tsl.nl)
+               "; unsat = the tsl theory entails the conjecture" (tsl.nl)
+               (prove.sort-decls Sorts)
+               "(declare-datatypes ((SLList 1)) ((par (T) ((slnil) (slcons (slhd T) (sltl (SLList T)))))))"
+               (tsl.nl)))
+
+(define prove.theory-text
+  Funs TDefs Tot -> (@s (prove.fun-decls Funs TDefs)
+                        (prove.equation-asserts Funs TDefs Tot)))
+
+(define prove.goal-text
+  Binders Matrix Sigs ->
+    (@s "(assert (not " (prove.smt [f-all Binders Matrix] Sigs [])
+        "))" (tsl.nl) "(check-sat)" (tsl.nl)))
 
 (define prove.tvars-of
   [] -> []
