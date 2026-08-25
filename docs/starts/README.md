@@ -12,7 +12,7 @@ Do not invent theorems. Next code is the named commit in each file.
 | 5 | 05-leastness.md | v2-mutual graph golden on this branch |
 | 6 | 06-thf.md | mutual.thf golden on this branch |
 | 7 | 07-definedness.md | `d.shen` on this branch; axioms tautological |
-| 8 | 08-apply.md | no ho-apply-scc yet |
+| 8 | 08-apply.md | ho-apply-scc fixture + graph golden on this branch |
 | 9 | 09-tsl.md | no mutual.tsl.logic / Formula AST yet |
 | 10 | 10-projection.md | template sl-checks on this branch |
 | 11 | 11-roundtrip.md | splice-retranslate sl-check on this branch |

@@ -335,6 +335,23 @@
                     (sl-rejected? "tests/fixtures/ho-bad-fn-arg.shen"))
           (sl-check "reject-ho-reserved-name"
                     (sl-rejected? "tests/fixtures/ho-reserved-name.shen"))
+          (sl-check "ho-apply-scc-graph"
+                    (= (sl-render "tests/fixtures/ho-apply-scc.shen" "graph")
+                       (sl-read "tests/golden/ho-apply-scc.graph.logic")))
+          (sl-check "ho-apply-scc-eval-named"
+                    (= (sl-eval "tests/fixtures/ho-apply-scc.shen" "(id-app inc)")
+                       [value 1]))
+          (sl-check "ho-apply-scc-eval-junk"
+                    (= (sl-eval "tests/fixtures/ho-apply-scc.shen" "(id-app 5)")
+                       [error apply-non-function]))
+          (sl-check "ho-apply-scc-query-named"
+                    (= (hd (shenlogic.query-file "tests/fixtures/ho-apply-scc.shen"
+                             "(id-app inc)" "1" "chc"))
+                       ok))
+          (sl-check "ho-apply-scc-query-junk"
+                    (= (hd (shenlogic.query-file "tests/fixtures/ho-apply-scc.shen"
+                             "(id-app junk)" "1" "chc"))
+                       ok))
           (sl-check "map-graph"
                     (= (sl-render "examples/v2-map.shen" "graph")
                        (sl-read "tests/golden/map.graph.logic")))
