@@ -68,6 +68,24 @@
   [ok _ _ _ _ Query] -> Query
   _ -> "")
 
+
+(define sl-contains-prefix?
+  [] _ -> true
+  _ [] -> false
+  [C | Cs] [C | Ds] -> (sl-contains-prefix? Cs Ds)
+  _ _ -> false)
+
+(define sl-contains-from?
+  [] _ -> true
+  _ [] -> false
+  Needle Haystack ->
+    (if (sl-contains-prefix? Needle Haystack)
+        true
+        (sl-contains-from? Needle (tl Haystack))))
+
+(define sl-contains?
+  Needle Haystack -> (sl-contains-from? (explode Needle) (explode Haystack)))
+
 (define sl-repair-program
   [ok _ _ Source _] ->
     (let Parsed (shenlogic.reader.parse-program
@@ -168,6 +186,9 @@
           (sl-check "d-tsl"
                     (= (sl-render "examples/d.shen" "tsl")
                        (sl-read "tests/golden/d.tsl.logic")))
+          (sl-check "mutual-tsl"
+                    (= (sl-render "examples/mutual.shen" "tsl")
+                       (sl-read "tests/golden/mutual.tsl.logic")))
           (sl-check "repair-factorial-edited-equation"
                     (let R (sl-repair-factorial
                               "tests/fixtures/repair-factorial.spec" 4)
@@ -223,6 +244,43 @@
                               2000 100 4)
                       (and (= (hd R) ok)
                            (not (= (sl-repair-query R) "")))))
+          (sl-check "repair-law-query-shape-true"
+                    (let R (shenlogic.repair-prepare-file
+                              "examples/factorial.shen"
+                              "tests/fixtures/repair-factorial.tsl.logic"
+                              "tests/fixtures/repair-factorial-law-true.spec"
+                              2000 100 4)
+                      (let Q (sl-repair-query R)
+                        (and (= (hd R) ok)
+                             (sl-contains? "|ShenLogic repair bad state|" Q)
+                             (sl-contains? "(factorial (VInt |ShenLogic law i 0 0|) |ShenLogic law r 0 0|)" Q)
+                             (sl-contains? "(VInt " Q)
+                             (sl-contains? "(not (= |ShenLogic law r 0 0| (VInt 2)))" Q)))))
+          (sl-check "repair-law-query-shape"
+                    (let R (shenlogic.repair-prepare-file
+                              "examples/factorial.shen"
+                              "tests/fixtures/repair-factorial.tsl.logic"
+                              "tests/fixtures/repair-factorial-law.spec"
+                              2000 100 4)
+                      (let Q (sl-repair-query R)
+                        (and (= (hd R) ok)
+                             (sl-contains? "|ShenLogic repair bad state|" Q)
+                             (sl-contains? "(factorial (VInt |ShenLogic law i 0 0|) |ShenLogic law r 0 0|)" Q)
+                             (sl-contains? "(VInt " Q)
+                             (sl-contains? "(not (= |ShenLogic law r 0 0| (VInt 2)))" Q)))))
+          (sl-check "repair-rejects-unsupported-law-binder"
+                    (let X (intern "X")
+                      (= (repair.law-open [all X : symbol true] 0 0 [])
+                         [error repair-unsupported-law-binder X symbol])))
+          (sl-check "repair-rejects-existential-law"
+                    (let X (intern "X")
+                      (= (repair.law-open [some X : number true] 0 0 [])
+                         [error repair-existential-law])))
+          (sl-check "repair-rejects-law-not-equation"
+                    (let X (intern "X")
+                      (= (repair.law-one [all X : number true]
+                            [theory [] [] [] [] []] 0)
+                         [error repair-law-not-equation true])))
           (sl-check "repair-ranked-candidates-exhaust"
                     (= (shenlogic.repair-prepare-file-nth
                          "examples/factorial.shen"
