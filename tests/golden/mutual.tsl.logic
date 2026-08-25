@@ -1,0 +1,25 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: even? unknown (no descent measure found)
+; totality: odd? unknown (no descent measure found)
+
+; boolean axioms
+(~ (true = false))
+(all B : boolean (or (B = true) (B = false)))
+
+; definedness: even?
+(defined-even? 0)
+(all N : number ((and (~ (N = 0)) (defined-odd? (- N 1))) => (defined-even? N)))
+(all N : number ((defined-even? N) => (or (N = 0) (and (~ (N = 0)) (defined-odd? (- N 1))))))
+; leastness of defined-even? is model-theoretic (mutual recursion)
+; definedness: odd?
+(defined-odd? 0)
+(all N : number ((and (~ (N = 0)) (defined-even? (- N 1))) => (defined-odd? N)))
+(all N : number ((defined-odd? N) => (or (N = 0) (and (~ (N = 0)) (defined-even? (- N 1))))))
+; leastness of defined-odd? is model-theoretic (mutual recursion)
+
+; equations
+((even? 0) = true)
+(all N : number ((and (~ (N = 0)) (defined-odd? (- N 1))) => ((even? N) = (odd? (- N 1)))))
+((odd? 0) = false)
+(all N : number ((and (~ (N = 0)) (defined-even? (- N 1))) => ((odd? N) = (even? (- N 1)))))

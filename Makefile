@@ -1,5 +1,6 @@
 .PHONY: host test smoke proof bifrost test-all package check certify query \
-	backend-check repair-check yggdrasil-stage1 shellcheck standalone-source
+	backend-check repair-check yggdrasil-stage1 shellcheck standalone-source \
+	benchmark-inventory
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
 SHEN_GO_ABS := $(if $(findstring /,$(SHEN_GO)),$(abspath $(SHEN_GO)),$(shell command -v $(SHEN_GO) 2>/dev/null))
@@ -109,3 +110,6 @@ build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
 
 shellcheck:
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic tests/repair-cli.sh; else echo 'SKIP: shellcheck is not installed'; fi
+
+benchmark-inventory:
+	awk -f tests/benchmark/inventory.awk tests/benchmark/tasks.tsv

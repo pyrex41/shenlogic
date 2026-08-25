@@ -77,6 +77,12 @@ theorem match_deterministic (p : Pattern) (v : Value) :
   intro a b ha hb
   exact matchMany_deterministic [p] [v] ha hb
 
+/-!
+  Shen expression fragment. `ite` / `andE` / `orE` use Shen's `= true` rule:
+  a computed value other than `.bool true` is else / false / rhs.
+  Stuck (`none`) stays stuck and does not take the other branch.
+  This is the evaluator, not an adequacy lemma.
+-/
 inductive Expr where
   | val : Value → Expr
   | var : String → Expr
@@ -84,6 +90,10 @@ inductive Expr where
   | eq : Expr → Expr → Expr
   | ite : Expr → Expr → Expr → Expr
   | call : String → List Expr → Expr
+  | letE : String → Expr → Expr → Expr
+  | andE : Expr → Expr → Expr
+  | orE : Expr → Expr → Expr
+  | cons : Expr → Expr → Expr
   deriving Repr
 
 abbrev Functions := String → List Value → Option Value
@@ -100,11 +110,26 @@ def eval (f : Functions) (ρ : Bindings) : Expr → Option Value
       let y ← eval f ρ b
       return .bool (x == y)
   | .ite c t e => do
-      let .bool b ← eval f ρ c | none
-      if b then eval f ρ t else eval f ρ e
+      let v ← eval f ρ c
+      if v == .bool true then eval f ρ t else eval f ρ e
   | .call n args => do
       let vs ← args.mapM (eval f ρ)
       f n vs
+  | .letE x a b => do
+      let v ← eval f ρ a
+      eval f ((x, v) :: ρ) b
+  | .andE a b => do
+      let v ← eval f ρ a
+      if v == .bool true then eval f ρ b else return .bool false
+  | .orE a b => do
+      let v ← eval f ρ a
+      if v == .bool true then return .bool true else eval f ρ b
+  | .cons a b => do
+      let h ← eval f ρ a
+      let t ← eval f ρ b
+      match t with
+      | .list xs => return .list (h :: xs)
+      | _ => return .ctor "cons" [h, t]
 
 theorem eval_deterministic (f : Functions) (ρ : Bindings) (e : Expr) :
     ∀ {a b}, eval f ρ e = some a → eval f ρ e = some b → a = b := by

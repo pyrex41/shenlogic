@@ -1,0 +1,11 @@
+; ShenLogic tsl v1
+; deduction system: docs/TSL-LOGIC.md
+; totality: d unknown (no descent measure found)
+
+; definedness: d
+(all N : number ((defined-d N) => (defined-d N)))
+(all N : number ((defined-d N) => (defined-d N)))
+(all P : (number => o) ((all N : number ((P N) => (P N))) => (all N : number ((defined-d N) => (P N)))))
+
+; equations
+(all N : number ((defined-d N) => ((d N) = (+ 1 (d N)))))
