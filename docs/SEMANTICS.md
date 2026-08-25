@@ -91,7 +91,11 @@ constructors. Declared signatures are required and checked; programs
 without a consistent typed reading are rejected rather than
 approximated. Equations are guarded by `defined-` antecedents exactly
 where the conservative termination classifier could not prove totality,
-so partial functions are never silently totalized. The intended
+so partial functions are never silently totalized. Emitted formulas are
+reduced by the documented classical equivalences (see the
+Simplification section of [TSL-LOGIC.md](TSL-LOGIC.md)); the reduction
+is checker-side and fail-closed, and never alters equation shapes,
+guards, exclusions, axiom blocks, or quantifier structure. The intended
 definedness reading is `defined-f(ā) iff exists v. f$(ā,v)` against the
 graph semantics above; that correspondence is a stated obligation, not a
 mechanized theorem.

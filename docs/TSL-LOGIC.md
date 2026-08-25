@@ -141,8 +141,10 @@ value in Shen, yet `((nth X L) = ...)` would still denote). `tsl`
 therefore guards every call to a function not proven total with a
 `defined-` antecedent at the call site. Unguarded equations appear only
 when the conservative termination classifier (structural descent,
-two-position lexicographic descent, or integer descent with a
-guard-derived lower bound; see `shen/termination.shen`) has proven every
+two-position lexicographic descent, or a monotone integer measure — a
+step whose canonical linear form is `V + K` in any spelling, descending
+with a guard-derived lower bound or ascending with an upper bound; see
+`shen/termination.shen` and `shen/linarith.shen`) has proven every
 callee total. The classifier never accepts clause-order exclusions such
 as `(~ (X = 0))` as an integer bound, so `factorial` stays guarded: it
 really does diverge on negative inputs.

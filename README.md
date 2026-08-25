@@ -67,9 +67,9 @@ wrong:
   prove them.
 
 When the conservative termination check does prove a function total —
-structural descent, lexicographic descent, or an integer measure with a
-guard-derived bound — the guards disappear and the equations take the
-textbook form:
+structural descent, lexicographic descent, or a monotone integer
+measure recognized in any linear spelling, with a guard-derived bound —
+the guards disappear and the equations take the textbook form:
 
 ```text
 ; totality: append2 total (structural descent at argument 0)
