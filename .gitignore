@@ -21,3 +21,6 @@ dist/SHA256SUMS
 # Local toolchain checkouts and credentials
 /vendor/
 .env
+
+# PO11 written-splice temp
+tests/repair-roundtrip-splice.shen

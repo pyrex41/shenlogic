@@ -76,6 +76,53 @@
           [program []]))
   _ -> [program []])
 
+
+(define sl-repair-source
+  [ok _ _ Source _] -> Source
+  _ -> "")
+
+\\ Write the spliced source, then retranslate the file.  This is the
+\\ PO11 composition: translate(written splice) vs the edited view.
+(define sl-written-retranslate?
+  "" _ -> false
+  Source LogicFile ->
+    (let Path "tests/repair-roundtrip-splice.shen"
+      (do (write-to-file Path Source)
+        (let Got (repair.parse-tsl (sl-render Path "tsl"))
+          (let Want (repair.parse-tsl (sl-read LogicFile))
+            (and (= (hd Got) ok)
+                 (= (hd Want) ok)
+                 (= (hd (tl Got)) (hd (tl Want)))
+                 (= (repair.alpha-list-top (hd (tl (tl Got))))
+                    (repair.alpha-list-top (hd (tl (tl Want)))))))))))
+
+(define sl-repair-templates
+  File Logic Name ->
+    (let Raw (shenlogic.source-program File)
+      (let EP (repair.parse-tsl (read-file-as-string Logic))
+        (if (= (hd EP) ok)
+            (let Eqs (repair.equations-for Name (hd (tl (tl EP))))
+              (let Def (repair.find-definition Name
+                         (shenlogic.ast.program-definitions Raw))
+                (if (= Def not-found)
+                    [error not-found Name]
+                    (repair.templates Eqs Name
+                      (shenlogic.ast.definition-clauses Def) []))))
+            EP))))
+
+(define sl-alpha-eq
+  V -> [all V : number
+         [[and [~ [V = 0]] [defined-factorial [- V 1]]]
+          => [[factorial V] = [* V [factorial [- V 1]]]]]])
+
+\\ Hand-built guard pools for PO13.  Not inverted from a tsl file.
+(define sl-search-pool-2x2
+  -> [[template 0 [x] 1 [a b]]
+      [template 1 [y] 2 [c d]]])
+
+(define sl-search-pool-none
+  -> [[template 0 [x] 1 [[some true] [some false] none]]])
+
 (define sl-run
   -> (let Results
          [(sl-check "factorial-surface"
@@ -90,9 +137,18 @@
           (sl-check "mutual-graph"
                     (= (sl-render "examples/mutual.shen" "graph")
                        (sl-read "tests/golden/mutual.graph.logic")))
+          (sl-check "v2-mutual-graph"
+                    (= (sl-render "examples/v2-mutual.shen" "graph")
+                       (sl-read "tests/golden/v2-mutual.graph.logic")))
           (sl-check "ordered-surface"
                     (= (sl-render "examples/ordered.shen" "surface")
                        (sl-read "tests/golden/ordered.surface.logic")))
+          (sl-check "guards-graph"
+                    (= (sl-render "examples/guards.shen" "graph")
+                       (sl-read "tests/golden/guards.graph.logic")))
+          (sl-check "lists-graph"
+                    (= (sl-render "examples/lists.shen" "graph")
+                       (sl-read "tests/golden/lists.graph.logic")))
           (sl-check "factorial-slir"
                     (= (sl-render "examples/factorial.shen" "slir")
                        (sl-read "tests/golden/factorial.slir")))
@@ -105,6 +161,9 @@
           (sl-check "factorial-tsl"
                     (= (sl-render "examples/factorial.shen" "tsl")
                        (sl-read "tests/golden/factorial.tsl.logic")))
+          (sl-check "d-tsl"
+                    (= (sl-render "examples/d.shen" "tsl")
+                       (sl-read "tests/golden/d.tsl.logic")))
           (sl-check "repair-factorial-edited-equation"
                     (let R (sl-repair-factorial
                               "tests/fixtures/repair-factorial.spec" 4)
@@ -177,6 +236,54 @@
                          "tests/fixtures/repair-factorial-scaffold.tsl.logic"
                          "tests/fixtures/repair-factorial.spec" 2000 100 4)
                        [error repair-edited-scaffolding]))
+          (sl-check "repair-templates-factorial"
+                    (let X (intern "X")
+                      (= (sl-repair-templates "examples/factorial.shen"
+                            "tests/fixtures/repair-factorial.tsl.logic" factorial)
+                         [ok [[template 0 [0] 2 [[some true] none]]
+                              [template 1 [X] [* X [factorial [- X 1]]] [none]]]])))
+          (sl-check "repair-templates-ordered"
+                    (let X (intern "X")
+                      (= (sl-repair-templates "examples/ordered.shen"
+                            "tests/fixtures/repair-ordered.tsl.logic" classify)
+                         [ok [[template 0 [X] nonpositive
+                                [[some [< X 0]] [some [<= X 0]] none]]
+                              [template 1 [1] one [none]]
+                              [template 2 [2] two [none]]
+                              [template 3 [X] positive [none]]]])))
+          (sl-check "repair-templates-declared"
+                    (let X (intern "X")
+                      (= (sl-repair-templates "tests/fixtures/declared.shen"
+                            "tests/fixtures/repair-declared.tsl.logic" declared-id)
+                         [ok [[template 0 [X] [+ X 1] [[some true] none]]]])))
+          (sl-check "repair-templates-wildcard"
+                    (= (sl-repair-templates "examples/tsl-values.shen"
+                          "tests/fixtures/repair-wildcard.tsl.logic" box-name)
+                       [ok [[template 0 [[box _]] boxed-again [[some true] none]]
+                            [template 1 [[pair _ _]] paired [[some true] none]]]]))
+          (sl-check "repair-alpha-binder-rename"
+                    (= (repair.alpha (sl-alpha-eq (intern "X")))
+                       (repair.alpha (sl-alpha-eq (intern "N")))))
+
+          (sl-check "repair-splice-retranslates-factorial"
+                    (let R (sl-repair-factorial
+                              "tests/fixtures/repair-factorial.spec" 4)
+                      (and (= (hd R) ok)
+                           (sl-written-retranslate? (sl-repair-source R)
+                             "tests/fixtures/repair-factorial.tsl.logic"))))
+          (sl-check "repair-enum-2x2-product"
+                    (= (repair.guard-selections (sl-search-pool-2x2) 100)
+                       [[b d] [b c] [a d] [a c]]))
+          (sl-check "repair-enum-limit-drops-none"
+                    (= (repair.guard-selections (sl-search-pool-none) 2)
+                       [[[some false]] [[some true]]]))
+          (sl-check "repair-rank-equal-cost-canonical"
+                    (and (= (repair.insert-best [best 1 "zz" z z]
+                              (repair.insert-best [best 1 "aa" a a] []))
+                            [[best 1 "aa" a a] [best 1 "zz" z z]])
+                         (= (repair.insert-best [best 1 "aa" a a]
+                              (repair.insert-best [best 1 "zz" z z] []))
+                            [[best 1 "aa" a a] [best 1 "zz" z z]])))
           (sl-check "tsl-rejects-missing-signature"
                     (sl-translation-rejected?
                       "tests/fixtures/tsl-no-signature.shen" "tsl"))

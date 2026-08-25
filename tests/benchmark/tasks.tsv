@@ -1,0 +1,10 @@
+id	source	logic	spec	expected	origin	class	inversion	witness
+factorial	examples/factorial.shen	tests/fixtures/repair-factorial.tsl.logic	tests/fixtures/repair-factorial.spec		neither		yes	repair-factorial-edited-equation
+ordered	examples/ordered.shen	tests/fixtures/repair-ordered.tsl.logic	tests/fixtures/repair-ordered.spec	tests/fixtures/repair-ordered.expected.shen	neither		yes	repair-whole-definition-edit
+declared	tests/fixtures/declared.shen	tests/fixtures/repair-declared.tsl.logic	tests/fixtures/repair-declared.spec	tests/fixtures/repair-declared.expected.shen	neither		yes	repair-preserves-declared-signature-style
+wildcard	examples/tsl-values.shen	tests/fixtures/repair-wildcard.tsl.logic	tests/fixtures/repair-wildcard.spec	tests/fixtures/repair-wildcard.expected.shen	neither		yes	repair-preserves-wildcard-patterns
+factorial-bad	examples/factorial.shen	tests/fixtures/repair-factorial.tsl.logic	tests/fixtures/repair-factorial-bad.spec		neither		no	repair-rejects-example-mismatch
+factorial-law	examples/factorial.shen	tests/fixtures/repair-factorial.tsl.logic	tests/fixtures/repair-factorial-law.spec		neither		no	repair-rejects-law-without-solver
+factorial-law-true	examples/factorial.shen	tests/fixtures/repair-factorial.tsl.logic	tests/fixtures/repair-factorial-law-true.spec		neither		no	repair-prepares-quantified-law
+factorial-noop	examples/factorial.shen	tests/golden/factorial.tsl.logic	tests/fixtures/repair-factorial.spec		neither		no	repair-rejects-noop-logic
+factorial-scaffold	examples/factorial.shen	tests/fixtures/repair-factorial-scaffold.tsl.logic	tests/fixtures/repair-factorial.spec		neither		no	repair-rejects-scaffolding-edit
