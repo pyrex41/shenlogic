@@ -9,6 +9,7 @@
 ; list axioms
 (all A : type (all X : A (all Y : (list A) (all Z : A (all W : (list A) (((cons X Y) = (cons Z W)) => (and (X = Z) (Y = W))))))))
 (all A : type (all X : A (all Y : (list A) (~ ((cons X Y) = ())))))
+(all A : type (all X : A (all Y : (list A) (~ ((cons X Y) = Y)))))
 (all A : type (all P : ((list A) => o) ((and (P ()) (all X : A (all Y : (list A) ((P Y) => (P (cons X Y)))))) => (all L : (list A) (P L)))))
 ; boolean bridge axioms
 (all X : number (all Y : number ((< X Y) => ((< X Y) = true))))

@@ -1,0 +1,695 @@
+=========================
+Step 0 [1]
+
+?- [all A : type [all X : [list A] [all Y : [list A] [all Z : [list A] [[append [append X Y] Z] = [append X [append Y Z]]]]]]]
+
+ > (intro append)=========================
+Step 1 [1]
+
+?- [all A : type [all X : [list A] [all Y : [list A] [all Z : [list A] [[append [append X Y] Z] = [append X [append Y Z]]]]]]]
+
+1. [all A : type [all X : [list A] [[append [] X] = X]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr t)=========================
+Step 2 [1]
+
+?- [all X : [list t] [all Y : [list t] [all Z : [list t] [[append [append X Y] Z] = [append X [append Y Z]]]]]]
+
+1. [t : type]
+2. [all A : type [all X : [list A] [[append [] X] = X]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn list-ind)=========================
+Step 3 [2]
+
+?- [all Y : [list t] [all Z : [list t] [[append [append [] Y] Z] = [append [] [append Y Z]]]]]
+
+1. [t : type]
+2. [all A : type [all X : [list A] [[append [] X] = X]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr y)=========================
+Step 4 [2]
+
+?- [all Z : [list t] [[append [append [] y] Z] = [append [] [append y Z]]]]
+
+1. [y : [list t]]
+2. [t : type]
+3. [all A : type [all X : [list A] [[append [] X] = X]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr z)=========================
+Step 5 [2]
+
+?- [[append [append [] y] z] = [append [] [append y z]]]
+
+1. [z : [list t]]
+2. [y : [list t]]
+3. [t : type]
+4. [all A : type [all X : [list A] [[append [] X] = X]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (alll t)=========================
+Step 6 [3]
+
+?- [t : type]
+
+1. [z : [list t]]
+2. [y : [list t]]
+3. [t : type]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn hyp)=========================
+Step 7 [2]
+
+?- [[append [append [] y] z] = [append [] [append y z]]]
+
+1. [all X : [list t] [[append [] X] = X]]
+2. [all A : type [all X : [list A] [[append [] X] = X]]]
+3. [z : [list t]]
+4. [y : [list t]]
+5. [t : type]
+6. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (alll y)=========================
+Step 8 [3]
+
+?- [y : [list t]]
+
+1. [all A : type [all X : [list A] [[append [] X] = X]]]
+2. [z : [list t]]
+3. [y : [list t]]
+4. [t : type]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn hyp)=========================
+Step 9 [2]
+
+?- [[append [append [] y] z] = [append [] [append y z]]]
+
+1. [[append [] y] = y]
+2. [all X : [list t] [[append [] X] = X]]
+3. [all A : type [all X : [list A] [[append [] X] = X]]]
+4. [z : [list t]]
+5. [y : [list t]]
+6. [t : type]
+7. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn =l)=========================
+Step 10 [2]
+
+?- [[append y z] = [append [] [append y z]]]
+
+1. [[append [] y] = y]
+2. [all X : [list t] [[append [] X] = X]]
+3. [all A : type [all X : [list A] [[append [] X] = X]]]
+4. [z : [list t]]
+5. [y : [list t]]
+6. [t : type]
+7. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (alll [append y z])=========================
+Step 11 [3]
+
+?- [[append y z] : [list t]]
+
+1. [[append [] y] = y]
+2. [all A : type [all X : [list A] [[append [] X] = X]]]
+3. [z : [list t]]
+4. [y : [list t]]
+5. [t : type]
+6. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn system-S)=========================
+Step 12 [2]
+
+?- [[append y z] = [append [] [append y z]]]
+
+1. [[append [] [append y z]] = [append y z]]
+2. [all X : [list t] [[append [] X] = X]]
+3. [[append [] y] = y]
+4. [all A : type [all X : [list A] [[append [] X] = X]]]
+5. [z : [list t]]
+6. [y : [list t]]
+7. [t : type]
+8. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn =l)=========================
+Step 13 [2]
+
+?- [[append y z] = [append y z]]
+
+1. [[append [] [append y z]] = [append y z]]
+2. [all X : [list t] [[append [] X] = X]]
+3. [[append [] y] = y]
+4. [all A : type [all X : [list A] [[append [] X] = X]]]
+5. [z : [list t]]
+6. [y : [list t]]
+7. [t : type]
+8. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn =r)=========================
+Step 14 [1]
+
+?- [all X161846 : t [all X161847 : [list t] [[all Y : [list t] [all Z : [list t] [[append [append X161847 Y] Z] = [append X161847 [append Y Z]]]]] => [all Y : [list t] [all Z : [list t] [[append [append [cons X161846 X161847] Y] Z] = [append [cons X161846 X161847] [append Y Z]]]]]]]]
+
+1. [t : type]
+2. [all A : type [all X : [list A] [[append [] X] = X]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr x)=========================
+Step 15 [1]
+
+?- [all X161847 : [list t] [[all Y : [list t] [all Z : [list t] [[append [append X161847 Y] Z] = [append X161847 [append Y Z]]]]] => [all Y : [list t] [all Z : [list t] [[append [append [cons x X161847] Y] Z] = [append [cons x X161847] [append Y Z]]]]]]]
+
+1. [x : t]
+2. [t : type]
+3. [all A : type [all X : [list A] [[append [] X] = X]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr y)=========================
+Step 16 [1]
+
+?- [[all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]] => [all Y : [list t] [all Z : [list t] [[append [append [cons x y] Y] Z] = [append [cons x y] [append Y Z]]]]]]
+
+1. [y : [list t]]
+2. [x : t]
+3. [t : type]
+4. [all A : type [all X : [list A] [[append [] X] = X]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (fn =>r)=========================
+Step 17 [1]
+
+?- [all Y : [list t] [all Z : [list t] [[append [append [cons x y] Y] Z] = [append [cons x y] [append Y Z]]]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+2. [y : [list t]]
+3. [x : t]
+4. [t : type]
+5. [all A : type [all X : [list A] [[append [] X] = X]]]
+6. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr w)=========================
+Step 18 [1]
+
+?- [all Z : [list t] [[append [append [cons x y] w] Z] = [append [cons x y] [append w Z]]]]
+
+1. [w : [list t]]
+2. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+3. [y : [list t]]
+4. [x : t]
+5. [t : type]
+6. [all A : type [all X : [list A] [[append [] X] = X]]]
+7. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (allr z)=========================
+Step 19 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [z : [list t]]
+2. [w : [list t]]
+3. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+4. [y : [list t]]
+5. [x : t]
+6. [t : type]
+7. [all A : type [all X : [list A] [[append [] X] = X]]]
+8. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (thin 7)=========================
+Step 20 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [z : [list t]]
+2. [w : [list t]]
+3. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+4. [y : [list t]]
+5. [x : t]
+6. [t : type]
+7. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+ > (promote 7)=========================
+Step 21 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+2. [z : [list t]]
+3. [w : [list t]]
+4. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+5. [y : [list t]]
+6. [x : t]
+7. [t : type]
+ > (alll t)=========================
+Step 22 [2]
+
+?- [t : type]
+
+1. [z : [list t]]
+2. [w : [list t]]
+3. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+4. [y : [list t]]
+5. [x : t]
+6. [t : type]
+ > (fn hyp)=========================
+Step 23 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+3. [z : [list t]]
+4. [w : [list t]]
+5. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+6. [y : [list t]]
+7. [x : t]
+8. [t : type]
+ > (alll x)=========================
+Step 24 [2]
+
+?- [x : t]
+
+1. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+2. [z : [list t]]
+3. [w : [list t]]
+4. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+5. [y : [list t]]
+6. [x : t]
+7. [t : type]
+ > (fn hyp)=========================
+Step 25 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (alll y)=========================
+Step 26 [2]
+
+?- [y : [list t]]
+
+1. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+3. [z : [list t]]
+4. [w : [list t]]
+5. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+6. [y : [list t]]
+7. [x : t]
+8. [t : type]
+ > (fn hyp)=========================
+Step 27 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+3. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+5. [z : [list t]]
+6. [w : [list t]]
+7. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (alll w)=========================
+Step 28 [2]
+
+?- [w : [list t]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (fn hyp)=========================
+Step 29 [1]
+
+?- [[append [append [cons x y] w] z] = [append [cons x y] [append w z]]]
+
+1. [[append [cons x y] w] = [cons x [append y w]]]
+2. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (fn =l)=========================
+Step 30 [1]
+
+?- [[append [cons x [append y w]] z] = [append [cons x y] [append w z]]]
+
+1. [[append [cons x y] w] = [cons x [append y w]]]
+2. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (thin 1)=========================
+Step 31 [1]
+
+?- [[append [cons x [append y w]] z] = [append [cons x y] [append w z]]]
+
+1. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+3. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+5. [z : [list t]]
+6. [w : [list t]]
+7. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (thin 1)=========================
+Step 32 [1]
+
+?- [[append [cons x [append y w]] z] = [append [cons x y] [append w z]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (alll [append y w])=========================
+Step 33 [2]
+
+?- [[append y w] : [list t]]
+
+1. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+3. [z : [list t]]
+4. [w : [list t]]
+5. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+6. [y : [list t]]
+7. [x : t]
+8. [t : type]
+ > (fn system-S)=========================
+Step 34 [1]
+
+?- [[append [cons x [append y w]] z] = [append [cons x y] [append w z]]]
+
+1. [all Z : [list t] [[append [cons x [append y w]] Z] = [cons x [append [append y w] Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+3. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+5. [z : [list t]]
+6. [w : [list t]]
+7. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (alll z)=========================
+Step 35 [2]
+
+?- [z : [list t]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (fn hyp)=========================
+Step 36 [1]
+
+?- [[append [cons x [append y w]] z] = [append [cons x y] [append w z]]]
+
+1. [[append [cons x [append y w]] z] = [cons x [append [append y w] z]]]
+2. [all Z : [list t] [[append [cons x [append y w]] Z] = [cons x [append [append y w] Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (fn =l)=========================
+Step 37 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [[append [cons x [append y w]] z] = [cons x [append [append y w] z]]]
+2. [all Z : [list t] [[append [cons x [append y w]] Z] = [cons x [append [append y w] Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (thin 1)=========================
+Step 38 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [all Z : [list t] [[append [cons x [append y w]] Z] = [cons x [append [append y w] Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+3. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+5. [z : [list t]]
+6. [w : [list t]]
+7. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (thin 1)=========================
+Step 39 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (thin 1)=========================
+Step 40 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+3. [z : [list t]]
+4. [w : [list t]]
+5. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+6. [y : [list t]]
+7. [x : t]
+8. [t : type]
+ > (alll x)=========================
+Step 41 [2]
+
+?- [x : t]
+
+1. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+2. [z : [list t]]
+3. [w : [list t]]
+4. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+5. [y : [list t]]
+6. [x : t]
+7. [t : type]
+ > (fn hyp)=========================
+Step 42 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (alll y)=========================
+Step 43 [2]
+
+?- [y : [list t]]
+
+1. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+2. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+3. [z : [list t]]
+4. [w : [list t]]
+5. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+6. [y : [list t]]
+7. [x : t]
+8. [t : type]
+ > (fn hyp)=========================
+Step 44 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+3. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+4. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+5. [z : [list t]]
+6. [w : [list t]]
+7. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (alll [append w z])=========================
+Step 45 [2]
+
+?- [[append w z] : [list t]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+2. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+3. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+4. [z : [list t]]
+5. [w : [list t]]
+6. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+7. [y : [list t]]
+8. [x : t]
+9. [t : type]
+ > (fn system-S)=========================
+Step 46 [1]
+
+?- [[cons x [append [append y w] z]] = [append [cons x y] [append w z]]]
+
+1. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+2. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (fn =l)=========================
+Step 47 [1]
+
+?- [[cons x [append [append y w] z]] = [cons x [append y [append w z]]]]
+
+1. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+2. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (promote 8)=========================
+Step 48 [1]
+
+?- [[cons x [append [append y w] z]] = [cons x [append y [append w z]]]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+2. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+3. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+4. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+5. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+6. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+7. [z : [list t]]
+8. [w : [list t]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (alll w)=========================
+Step 49 [2]
+
+?- [w : [list t]]
+
+1. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+2. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+4. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+5. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+6. [z : [list t]]
+7. [w : [list t]]
+8. [y : [list t]]
+9. [x : t]
+10. [t : type]
+ > (fn hyp)=========================
+Step 50 [1]
+
+?- [[cons x [append [append y w] z]] = [cons x [append y [append w z]]]]
+
+1. [all Z : [list t] [[append [append y w] Z] = [append y [append w Z]]]]
+2. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+3. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+4. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+5. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+6. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+7. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+8. [z : [list t]]
+9. [w : [list t]]
+10. [y : [list t]]
+11. [x : t]
+12. [t : type]
+ > (alll z)=========================
+Step 51 [2]
+
+?- [z : [list t]]
+
+1. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+2. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+3. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+4. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+5. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+6. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+7. [z : [list t]]
+8. [w : [list t]]
+9. [y : [list t]]
+10. [x : t]
+11. [t : type]
+ > (fn hyp)=========================
+Step 52 [1]
+
+?- [[cons x [append [append y w] z]] = [cons x [append y [append w z]]]]
+
+1. [[append [append y w] z] = [append y [append w z]]]
+2. [all Z : [list t] [[append [append y w] Z] = [append y [append w Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+4. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+5. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+6. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+7. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+8. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+9. [z : [list t]]
+10. [w : [list t]]
+11. [y : [list t]]
+12. [x : t]
+13. [t : type]
+ > (fn =l)=========================
+Step 53 [1]
+
+?- [[cons x [append y [append w z]]] = [cons x [append y [append w z]]]]
+
+1. [[append [append y w] z] = [append y [append w z]]]
+2. [all Z : [list t] [[append [append y w] Z] = [append y [append w Z]]]]
+3. [all Y : [list t] [all Z : [list t] [[append [append y Y] Z] = [append y [append Y Z]]]]]
+4. [[append [cons x y] [append w z]] = [cons x [append y [append w z]]]]
+5. [all Z : [list t] [[append [cons x y] Z] = [cons x [append y Z]]]]
+6. [all Y : [list t] [all Z : [list t] [[append [cons x Y] Z] = [cons x [append Y Z]]]]]
+7. [all X : t [all Y : [list t] [all Z : [list t] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]
+8. [all A : type [all X : A [all Y : [list A] [all Z : [list A] [[append [cons X Y] Z] = [cons X [append Y Z]]]]]]]
+9. [z : [list t]]
+10. [w : [list t]]
+11. [y : [list t]]
+12. [x : t]
+13. [t : type]
+ > (fn =r)

@@ -271,6 +271,14 @@
              [f-all [[X A] [Y [list A]]]
                [f-not [f-eq [e-ctor cons [[e-var X] [e-var Y]]]
                             [e-ctor nil []]]]])
+           \\ Acyclicity (a list is never its own tail) is derivable from
+           \\ induction with injectivity and disjointness, and shipped as
+           \\ an axiom for convenience; it also refutes the equation of
+           \\ any circularly-defined list value directly.
+           (tsl.line
+             [f-all [[X A] [Y [list A]]]
+               [f-not [f-eq [e-ctor cons [[e-var X] [e-var Y]]]
+                            [e-var Y]]]])
            (tsl.line
              [f-all-pred P [[list A]]
                [f-imp
