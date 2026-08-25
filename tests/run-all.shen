@@ -4,6 +4,7 @@
 
 (load "shenlogic.shen")
 (load "tests/certificate.shen")
+(load "tests/factorial-rule-witness.shen")
 
 (define sl-check
   Label true -> (do (output (cn "PASS " (cn Label "~%"))) true)
@@ -496,6 +497,10 @@
           (sl-check "factorial-eval-zero"
                     (= (sl-eval "examples/factorial.shen" "(factorial 0)")
                        [value 1]))
+          (sl-check "factorial-rule-c0-zero"
+                    (rules-witness.zero))
+          (sl-check "factorial-rule-c1-five"
+                    (rules-witness.five))
           (sl-check "negative-factorial-timeout"
                     (= (shenlogic.evaluate-file "examples/factorial.shen"
                                                 "(factorial -1)" 50)
