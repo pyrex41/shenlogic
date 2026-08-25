@@ -6,7 +6,7 @@
   [_ | Rest] -> Rest)
 
 (define shenlogic.cli-usage
-  _ -> (output "shenlogic translate FILE --format surface|graph|slir|chc|thf|tsl [-o OUT]~%shenlogic check FILE [--backend graph|chc|thf]~%shenlogic eval FILE EXPR [--fuel N]~%shenlogic certify FILE --out DIR~%shenlogic query FILE EXPR EXPECTED --backend chc|thf~%shenlogic repair FILE --logic EDITED.tsl.logic --spec SPEC [--max-cost N] [--max-candidates N] [--fuel N] [--optimizer prolog] [--write]~%shenlogic test~%shenlogic --version~%"))
+  _ -> (output "shenlogic translate FILE --format surface|graph|slir|chc|thf|tsl [-o OUT]~%shenlogic check FILE [--backend graph|chc|thf]~%shenlogic eval FILE EXPR [--fuel N]~%shenlogic certify FILE --out DIR~%shenlogic query FILE EXPR EXPECTED --backend chc|thf~%shenlogic repair FILE --logic EDITED.tsl.logic --spec SPEC [--max-cost N] [--max-candidates N] [--fuel N] [--optimizer prolog] [--write]~%shenlogic prove FILE CONJECTURE [--induct VAR] [-o OUT]~%shenlogic oracle FILE~%shenlogic test~%shenlogic --version~%"))
 
 (define shenlogic.cli-value
   [] _ Default -> Default
@@ -41,12 +41,13 @@
                    (if (= Name "certify") (shenlogic.cli-certify Rest)
                    (if (= Name "query") (shenlogic.cli-query Rest)
                    (if (= Name "repair") (shenlogic.cli-repair Rest)
+                   (if (= Name "prove") (shenlogic.cli-prove Rest)
                    (if (= Name "test") (shenlogic.cli-test)
                    (if (or (= Name "version") (= Name "--version"))
                        (shenlogic.cli-version)
                    (if (or (= Name "help") (= Name "--help") (= Name "-h"))
                        (shenlogic.cli-usage false)
-                       (error (cn "shenlogic: unknown command: " Name)))))))))))))))
+                       (error (cn "shenlogic: unknown command: " Name))))))))))))))))
 
 (define shenlogic.cli-name
   X -> (if (string? X) X (str X)))
@@ -108,6 +109,19 @@
             (output "~A" (hd (tl (tl Result))))
             (error (serialize.canonical Result)))))
   _ -> (error "shenlogic query: expected FILE EXPR EXPECTED --backend chc|thf"))
+
+(define shenlogic.cli-prove
+  [File Conj | Rest] ->
+    (let InductText (shenlogic.cli-value Rest "--induct" false)
+      (let Induct (if (= InductText false) none (intern InductText))
+        (let Output (shenlogic.cli-output Rest)
+          (let R (shenlogic.prove-file File Conj Induct)
+            (if (= (hd R) ok)
+                (if (= Output false)
+                    (output "~A" (hd (tl R)))
+                    (write-to-file Output (hd (tl R))))
+                (error (serialize.canonical R)))))))
+  _ -> (error "shenlogic prove: expected FILE CONJECTURE"))
 
 (define shenlogic.cli-repair
   [File | Rest] ->

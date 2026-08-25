@@ -17,6 +17,50 @@ case $HOST in
 esac
 cd "$ROOT"
 
+# prove crosses the same pure-Shen/runtime boundary as repair: the Shen
+# phase builds the SMT query, this wrapper owns the solver call.  unsat is
+# the only success; sat, unknown, a missing solver, or a solver failure all
+# fail closed.  With -o the query is written and no solver runs.
+if [ "${1:-}" = prove ]; then
+  PROVE_HAS_OUT=false
+  for PROVE_ARG in "$@"; do
+    [ "$PROVE_ARG" = -o ] && PROVE_HAS_OUT=true
+  done
+  if [ "$PROVE_HAS_OUT" = false ]; then
+    PROVE_TEMP=$(mktemp -d "${TMPDIR:-/tmp}/shenlogic-prove.XXXXXX")
+    prove_cleanup() {
+      rm -rf "$PROVE_TEMP"
+    }
+    trap prove_cleanup EXIT HUP INT TERM
+    "$HOST" script shenlogic-cli.shen "$@" -o "$PROVE_TEMP/query.smt2"
+    if [ -n "${Z3:-}" ]; then
+      PROVE_Z3=$Z3
+    elif command -v z3 >/dev/null 2>&1; then
+      PROVE_Z3=$(command -v z3)
+    else
+      echo 'shenlogic prove: proving requires Z3 (set Z3)' >&2
+      exit 3
+    fi
+    "$PROVE_Z3" -smt2 -T:"${SHENLOGIC_PROVE_TIMEOUT:-60}" \
+      "$PROVE_TEMP/query.smt2" > "$PROVE_TEMP/z3.out" 2>&1 || true
+    PROVE_RESULT=$(sed -n '$p' "$PROVE_TEMP/z3.out")
+    case $PROVE_RESULT in
+      unsat)
+        echo proved
+        exit 0
+        ;;
+      sat)
+        echo 'shenlogic prove: the conjecture is refutable in the theory' >&2
+        exit 1
+        ;;
+      *)
+        echo "shenlogic prove: solver result is not conclusive: $PROVE_RESULT" >&2
+        exit 1
+        ;;
+    esac
+  fi
+fi
+
 # Repair laws cross the deliberately pure Shen/runtime boundary here.  The
 # Shen phase prepares immutable artifacts; Z3 must prove the bad-state query
 # unreachable before this wrapper prints or commits the proposed patch.

@@ -259,6 +259,27 @@
           (sl-check "linarith-eval-countup"
                     (= (sl-eval "examples/tsl-linarith.shen" "(countup -3)")
                        [value 1]))
+          (sl-check "prove-assoc-golden"
+                    (let R (shenlogic.prove-file "examples/tsl-lists.shen"
+                             "(all A : type (all X : (list A) (all Y : (list A) (all Z : (list A) ((append2 (append2 X Y) Z) = (append2 X (append2 Y Z)))))))"
+                             (intern "X"))
+                      (and (= (hd R) ok)
+                           (= (hd (tl R))
+                              (sl-read "tests/golden/append-assoc.prove.smt2")))))
+          (sl-check "prove-rejects-nontotal"
+                    (= (shenlogic.prove-file "examples/fib.shen"
+                         "(all X : number ((fib X) = (fib X)))" none)
+                       [error [sl-p003 prove-requires-total fib]]))
+          (sl-check "prove-rejects-unknown-function"
+                    (= (shenlogic.prove-file "examples/tsl-lists.shen"
+                         "(all X : number ((mystery X) = X))" none)
+                       [error [sl-p002 prove-unknown-function mystery]]))
+          (sl-check "prove-rejects-bad-induct"
+                    (= (shenlogic.prove-file "examples/tsl-lists.shen"
+                         "(all A : type (all X : (list A) ((append2 X ()) = X)))"
+                         (intern "Q"))
+                       [error [sl-p005 prove-bad-induction-variable
+                               (intern "Q")]]))
           (sl-check "linarith-classify"
                     (= (termination.classify
                          (shenlogic.program "examples/tsl-linarith.shen"))

@@ -1,5 +1,6 @@
 .PHONY: host test smoke proof bifrost test-all package check certify query \
-	backend-check repair-check yggdrasil-stage1 shellcheck standalone-source
+	backend-check repair-check prove-check yggdrasil-stage1 shellcheck \
+	standalone-source
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
 SHEN_GO_ABS := $(if $(findstring /,$(SHEN_GO)),$(abspath $(SHEN_GO)),$(shell command -v $(SHEN_GO) 2>/dev/null))
@@ -41,6 +42,9 @@ backend-check:
 repair-check:
 	sh tests/repair-cli.sh
 
+prove-check:
+	sh tests/prove-cli.sh
+
 proof:
 	@if command -v lake >/dev/null 2>&1; then cd proof && lake build; else echo 'SKIP: lake is not installed'; fi
 
@@ -49,7 +53,7 @@ bifrost:
 	elif command -v bifrost >/dev/null 2>&1; then SHEN_FASL=off BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
 	else echo 'SKIP: bifrost binary not found'; fi
 
-test-all: test smoke shellcheck proof bifrost certify backend-check repair-check
+test-all: test smoke shellcheck proof bifrost certify backend-check repair-check prove-check
 
 package:
 	@set -eu; \
@@ -104,8 +108,8 @@ build/shenlogic-all.shen: shenlogic.shen shen/cli.shen $(wildcard shen/*.shen)
 		shen/rules.shen shen/serialize.shen shen/evaluator.shen \
 		shen/certificate.shen shen/surface.shen shen/graph.shen shen/chc.shen \
 		shen/thf.shen shen/typing.shen shen/linarith.shen \
-		shen/termination.shen shen/tsl.shen \
+		shen/termination.shen shen/tsl.shen shen/prove.shen \
 		shen/repair.shen shen/workflow.shen shenlogic.shen shen/cli.shen > $@
 
 shellcheck:
-	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic tests/repair-cli.sh; else echo 'SKIP: shellcheck is not installed'; fi
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/shenlogic tests/repair-cli.sh tests/prove-cli.sh; else echo 'SKIP: shellcheck is not installed'; fi

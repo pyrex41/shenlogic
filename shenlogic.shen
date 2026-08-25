@@ -15,6 +15,7 @@
 (load "shen/linarith.shen")
 (load "shen/termination.shen")
 (load "shen/tsl.shen")
+(load "shen/prove.shen")
 (load "shen/repair.shen")
 (load "shen/workflow.shen")
 
