@@ -1,6 +1,6 @@
 \\ List functions THORN 20 takes from the Shen S42 standard library
-\\ (Lib/StLib/Lists/lists.shen and Symbols/symbols2.shen, BSD, Mark Tarver) that the 41.2 kernel
-\\ does not define.  Wrapped in package thorn so the names resolve to
+\\ (Lib/StLib/Lists/lists.shen and Symbols/symbols2.shen, BSD, Mark Tarver) that the kernel (41.2
+\\ and S42 alike) does not define.  Wrapped in package thorn so the names resolve to
 \\ the thorn.-prefixed references THORN20.shen compiles to.
 
 (package thorn []

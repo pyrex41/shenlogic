@@ -30,6 +30,7 @@ handful of Shen S42 standard-library functions it needs, taken from the
 public S42 distribution under its BSD licence (see the LICENSE there and
 `toolchain.lock`). It is published third-party source, not clean-room
 work. Two local edits are marked in place: a prelude supplying S42
-library functions absent from the 41.2 kernel, and one datatype rule in
-`datatypes.shen` reshaped so the 41.2 Prolog compiler accepts it. Any
+standard-library functions the kernel does not define, and one datatype
+rule in `datatypes.shen` reshaped so the kernel's Prolog compiler accepts
+it (needed on the 41.2 and S42 kernels alike). Any
 further divergence is a documented fork, per docs/THORN-PLAN.md.

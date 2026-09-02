@@ -58,9 +58,9 @@
   ===================================
   [F | X] : literal;
   
-  \\ ShenLogic: the 41.2 kernel's Prolog compiler splits a generated
-  \\ clause at the first <-- symbol, so the S42 rule [P <-- | Q] does
-  \\ not load.  Bind the arrow to a variable and test it instead.
+  \\ ShenLogic: the Shen kernel's Prolog compiler splits a generated
+  \\ clause at the first <-- symbol (41.2 and S42 alike), so the rule
+  \\ [P <-- | Q] does not load.  Bind the arrow to a variable and test it instead.
   if (= C <--)
   P : literal; Q : (list literal);
   ================================

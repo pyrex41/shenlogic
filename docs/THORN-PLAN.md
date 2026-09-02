@@ -44,17 +44,23 @@ THORN 20 from the S42 distribution is vendored under `third_party/thorn/`
 with its BSD licence, recorded in `toolchain.lock`, and noted in
 [CLEANROOM.md](../CLEANROOM.md). `make thorn-check` runs
 `tests/thorn-smoke.shen` on the default host. Findings from getting it to
-run on the 41.2 kernel under shen-go:
+run under shen-go, first on the pinned 41.2 kernel and then on upstream
+shen-go at a4b8ab9, which carries the S42 kernel:
 
 - **S42 library dependencies.** THORN 20 calls nine functions that live
-  in the S42 standard library rather than the kernel: `mapf`, `newv`,
+  in the S42 standard library (`Lib/StLib`) rather than the kernel, so
+  they are absent on the S42 shen-go too: `mapf`, `newv`,
   `remove-duplicates`, `subset?`, `every?`, `sort`, `filter`,
   `remove-if`, `partition`. They are supplied verbatim in
   `third_party/thorn/prelude.shen`, inside `package thorn` so the
   prefixed references in the compiled prover resolve.
-- **Kernel divergence on `<--` in datatype patterns.** The 41.2 Prolog
-  compiler splits a generated clause at the first `<--` symbol, so the
-  prop rule `[P <-- | Q] : prop` in `datatypes.shen` fails to load. The
+- **Kernel limitation on `<--` in datatype patterns.** The kernel's
+  Prolog compiler splits a generated clause at the first `<--` symbol,
+  so the prop rule `[P <-- | Q] : prop` in `datatypes.shen` fails to
+  load. This is not a 41.2 artefact: `prolog.shen`, `sequent.shen`, and
+  `types.shen` are byte-identical between the S42 distribution and
+  shen-go's kernel, and the unpatched file fails the same way on the
+  S42 shen-go build. The
   rule is reshaped as `[P C | Q]` with the side condition `if (= C <--)`
   placed before the premises. The condition must precede the premises;
   after them it is a datatype syntax error. The upstream grammar is
@@ -71,6 +77,11 @@ run on the 41.2 kernel under shen-go:
 - **Proof output.** `<-kb` writes `prf.txt` into the current directory
   on this host (the `*home-directory*` value is empty), so `/prf.txt` is
   gitignored until phase 1 captures it explicitly.
+- **S42 shen-go.** With the same prelude and datatype patch, the smoke
+  test and the whole ShenLogic suite (test, smoke, certify, backend,
+  repair, prove, oracle checks) pass on upstream shen-go a4b8ab9. The
+  Steamroller takes about 18 seconds there. Bumping the pinned host in
+  `toolchain.lock` is a project-wide decision and is left as is.
 - **Not yet run on shen-cl or shen-lua.** The prover compiles props to
   Prolog at run time, so those hosts are the likely next divergence.
 
