@@ -1,5 +1,5 @@
 .PHONY: host test smoke proof bifrost test-all package check certify query \
-	backend-check repair-check prove-check oracle-check yggdrasil-stage1 \
+	backend-check repair-check prove-check oracle-check thorn-check yggdrasil-stage1 \
 	shellcheck standalone-source
 
 SHEN_GO ?= $(if $(wildcard ../shen-go/.bin/shen-go),../shen-go/.bin/shen-go,$(shell command -v shen-go 2>/dev/null || printf '%s' ../shen-go/.bin/shen-go))
@@ -48,6 +48,9 @@ prove-check:
 oracle-check:
 	$(SHEN_GO) script tests/oracle-arith.shen
 
+thorn-check:
+	$(SHEN_GO) script tests/thorn-smoke.shen
+
 proof:
 	@if command -v lake >/dev/null 2>&1; then cd proof && lake build; else echo 'SKIP: lake is not installed'; fi
 
@@ -56,7 +59,7 @@ bifrost:
 	elif command -v bifrost >/dev/null 2>&1; then SHEN_FASL=off BIFROST_SHEN_GO="$(SHEN_GO)" bifrost --suite ./bifrost.suite.json --impls $(BIFROST_IMPLS); \
 	else echo 'SKIP: bifrost binary not found'; fi
 
-test-all: test smoke shellcheck proof bifrost certify backend-check repair-check prove-check oracle-check
+test-all: test smoke shellcheck proof bifrost certify backend-check repair-check prove-check oracle-check thorn-check
 
 package:
 	@set -eu; \

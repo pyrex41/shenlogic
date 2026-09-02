@@ -15,6 +15,7 @@ dist/SHA256SUMS
 /*.logic
 /*.chc
 /*.thf
+/prf.txt
 *.olean
 /.lake/
 

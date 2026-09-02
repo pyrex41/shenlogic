@@ -21,3 +21,6 @@ jjparser-repository https://github.com/TPTPWorld/JJParser.git
 jjparser-revision 14611475bb2e0e946609889167dcc5db9f93eb17
 tptp4x-entrypoint tptp4X
 source-date-epoch 0
+thorn-version 20
+thorn-source https://www.shenlanguage.org/Download/S42.zip (Lib/THORN, Lib/StLib)
+thorn-license BSD-3-Clause (third_party/thorn/LICENSE)

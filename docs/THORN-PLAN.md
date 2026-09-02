@@ -38,19 +38,41 @@ ShenLogic actually produces.
 | `attach` gives procedural attachment | A route to arithmetic guards later, outside any soundness claim. |
 | Timeout is "liberal" per its own docs | Wall-clock enforced by the wrapper, as for Z3. |
 
-## Phase 0: obtain and pin THORN
+## Phase 0: obtain and pin THORN (done)
 
-1. Vendor `THORN 20.shen` and its `datatypes.shen` under `vendor/thorn/`
-   with the Shen library's BSD licence file, and record the library
-   revision in `toolchain.lock`.
-2. Add a note to [CLEANROOM.md](../CLEANROOM.md): THORN is published,
-   licensed third-party source, used unmodified in phase 1 and forked
-   explicitly from phase 3 on.
-3. Confirm it loads and proves `Problems/schubert.shen` on shen-go,
-   shen-cl, and shen-lua. Any host divergence is recorded the way the
-   shen-lua typing divergence was.
+THORN 20 from the S42 distribution is vendored under `third_party/thorn/`
+with its BSD licence, recorded in `toolchain.lock`, and noted in
+[CLEANROOM.md](../CLEANROOM.md). `make thorn-check` runs
+`tests/thorn-smoke.shen` on the default host. Findings from getting it to
+run on the 41.2 kernel under shen-go:
 
-Exit: `make thorn-smoke` passes on the default host.
+- **S42 library dependencies.** THORN 20 calls nine functions that live
+  in the S42 standard library rather than the kernel: `mapf`, `newv`,
+  `remove-duplicates`, `subset?`, `every?`, `sort`, `filter`,
+  `remove-if`, `partition`. They are supplied verbatim in
+  `third_party/thorn/prelude.shen`, inside `package thorn` so the
+  prefixed references in the compiled prover resolve.
+- **Kernel divergence on `<--` in datatype patterns.** The 41.2 Prolog
+  compiler splits a generated clause at the first `<--` symbol, so the
+  prop rule `[P <-- | Q] : prop` in `datatypes.shen` fails to load. The
+  rule is reshaped as `[P C | Q]` with the side condition `if (= C <--)`
+  placed before the premises. The condition must precede the premises;
+  after them it is a datatype syntax error. The upstream grammar is
+  itself permissive: it accepts `[[p a] foo [q a]]` as a prop with or
+  without this rule, so the typed grammar is documentation, not a
+  gate. The bridge in phase 1 runs with the type checker off.
+- **Performance on shen-go.** Schubert's Steamroller proves in about
+  5 million inferences and 15 seconds, against the 1 second claimed
+  for Shen/Scheme. The default 5 second budget is too small on this
+  host, so the smoke test sets 120 seconds. Ground `append` facts show
+  the expected blow-up: 37, 738, and 74,521 inferences for lists of
+  length 0, 1, and 2, and the length-3 fact times out at 5 seconds.
+  This is the motivation for phase 3 item 2.
+- **Proof output.** `<-kb` writes `prf.txt` into the current directory
+  on this host (the `*home-directory*` value is empty), so `/prf.txt` is
+  gitignored until phase 1 captures it explicitly.
+- **Not yet run on shen-cl or shen-lua.** The prover compiles props to
+  Prolog at run time, so those hosts are the likely next divergence.
 
 ## Phase 1: bridge, no changes to THORN
 
@@ -155,7 +177,7 @@ Each extension lands with a THORN-only unit test in
 
 ## Order of work
 
-Phase 0 and phase 1 together are about a week of effort and give a
+Phase 0 is done. Phase 1 is a few days of effort and gives a
 demonstrable Shen-only `prove`. Phase 2 is a day and is a precondition for
 touching THORN's internals. Phase 3 items 1 and 2 are the ones worth doing
 before any paper deadline; items 3 to 6 follow as the corpus demands.
