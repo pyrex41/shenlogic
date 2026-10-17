@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "parameters": {"requestId":"requestId","amount":"amount"},
+ "calls": {
+  "require_authorized": {"arity":0,"program":["require",["input","authorized"]],"assumption":"authorization-input-is-authenticated"},
+  "debit": {"arity":1,"program":["seq",["require",["<=",["lit",0],["arg",0]]],["seq",["require",["<=",["arg",0],["get","alice"]]],["put","alice",["-",["get","alice"],["arg",0]]]]],"assumption":"debit-api-matches-model"},
+  "credit": {"arity":1,"program":["put","bob",["+",["get","bob"],["arg",0]]],"assumption":"credit-api-matches-model"},
+  "publish_transfer": {"arity":1,"program":["emit","transfer",["arg",0]],"assumption":"publication-is-outbox-intent"}
+ },
+ "scopes": {
+  "once":{"kind":"once","key":"requestId","argument":0,"body":1,"assumption":"durable-once-includes-state-outbox-and-receipt"},
+  "atomic":{"kind":"atomic","body":0,"assumption":"transaction-covers-all-modeled-state"}
+ }
+}

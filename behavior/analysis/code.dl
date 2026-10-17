@@ -1,0 +1,36 @@
+// All outputs are MAY analyses. No absence proves safety.
+.decl Node(id:symbol,kind:symbol,file:symbol,start:number,end:number)
+.input Node
+.decl Flow(src:symbol,dst:symbol,kind:symbol)
+.input Flow
+.decl Calls(site:symbol,callee:symbol)
+.input Calls
+.decl Contains(parent:symbol,child:symbol)
+.input Contains
+.decl Entry(name:symbol,node:symbol)
+.input Entry
+.decl Reads(site:symbol,resource:symbol)
+.input Reads
+.decl Writes(site:symbol,resource:symbol)
+.input Writes
+.decl Unknown(site:symbol,reason:symbol)
+.input Unknown
+.decl Descendant(parent:symbol,child:symbol)
+Descendant(P,C) :- Contains(P,C).
+Descendant(P,C) :- Contains(P,M), Descendant(M,C).
+.decl Reachable(src:symbol,dst:symbol)
+Reachable(S,D) :- Flow(S,D,_).
+Reachable(S,D) :- Reachable(S,M), Flow(M,D,_).
+.decl MayCall(entry:symbol,callee:symbol)
+MayCall(E,C) :- Entry(E,N), Descendant(N,S), Calls(S,C).
+MayCall(E,C) :- MayCall(E,M), MayCall(M,C).
+.decl MayWrite(entry:symbol,resource:symbol)
+MayWrite(E,R) :- Entry(E,N), Descendant(N,S), Writes(S,R).
+MayWrite(E,R) :- MayCall(E,C), MayWrite(C,R).
+.decl Unresolved(entry:symbol,site:symbol,reason:symbol)
+Unresolved(E,S,R) :- Entry(E,N), Descendant(N,S), Unknown(S,R).
+Unresolved(E,S,R) :- MayCall(E,C), Unresolved(C,S,R).
+.output Reachable
+.output MayCall
+.output MayWrite
+.output Unresolved

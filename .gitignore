@@ -21,3 +21,6 @@ dist/SHA256SUMS
 # Local toolchain checkouts and credentials
 /vendor/
 .env
+
+# Shen host standard-library cache
+.shen-kernel-cache*.bin.stlib
