@@ -1,5 +1,9 @@
 # ShenLogic
 
+The [behavioral reconstruction framework](behavior/README.md) adds Shen indexed
+behavioral types, source and Ghidra facts, Soufflé analysis, GraphWalker scenarios,
+simulation, evidence journals and migration conformance checking.
+
 ShenLogic compiles a pure subset of [Shen](https://shenlanguage.org) into
 formal logic. For each function it emits a machine-checkable theory —
 typed equations, definedness predicates, and datatype axioms — that states

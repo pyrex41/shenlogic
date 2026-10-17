@@ -1,0 +1,39 @@
+name: Behavioral reconstruction
+on:
+  push:
+    paths: ['behavior/**', '.github/workflows/behavior.yml']
+  pull_request:
+    paths: ['behavior/**', '.github/workflows/behavior.yml']
+  workflow_dispatch:
+    inputs:
+      external:
+        description: Run pinned Ghidra, GraphWalker, and Souffle integrations
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  behavior:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: behavior/package-lock.json
+      - name: Build pinned Shen runtime
+        working-directory: behavior
+        run: npm run bootstrap
+      - name: Check and test
+        working-directory: behavior
+        run: |
+          npm run format:check
+          npm test
+          npm run demo
+      - name: Full external integration gate
+        if: github.event_name == 'workflow_dispatch' && inputs.external
+        working-directory: behavior
+        run: |
+          npm run bootstrap -- --external
+          npm run test:external

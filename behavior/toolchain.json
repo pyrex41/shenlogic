@@ -1,0 +1,36 @@
+{
+  "shenlogicBase": "7a1e3ae7b680c946378dcefa11e1c63db81b1690",
+  "node": "24",
+  "repositories": {
+    "shen-lua": {
+      "url": "https://github.com/pyrex41/shen-lua.git",
+      "revision": "1a58b83c71c60f469c15ca6054135614f95755b2"
+    },
+    "LuaJIT": {
+      "url": "https://github.com/LuaJIT/LuaJIT.git",
+      "revision": "2a8e017ef1ece6a95b983ffca073d30609dce7c4"
+    }
+  },
+  "externalLinuxX64": {
+    "souffle.deb": {
+      "url": "https://github.com/souffle-lang/souffle/releases/download/2.5/x86_64-ubuntu-2204-souffle-2.5-Linux.deb",
+      "sha256": "7543cd52d6f3a90e4854a3a43123121ff8863e0810752a3586d22c8fb583a6fb"
+    },
+    "ncurses.deb": {
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/n/ncurses/libncurses6_6.4+20240113-1ubuntu2_amd64.deb",
+      "sha256": "f2b8efe3a3e2f622c5266d5a1301048306441885d2bbebc02685cb8c2d097537"
+    },
+    "graphwalker.jar": {
+      "url": "https://github.com/GraphWalker/graphwalker-project/releases/download/4.3.3/graphwalker-cli-4.3.3.jar",
+      "sha256": "8300b4ad7faf2ad2c0acde9ec0a6ffbbafe59ce51d05b5e00e971272c9364317"
+    },
+    "ghidra.zip": {
+      "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip",
+      "sha256": "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
+    },
+    "jdk.tar.gz": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+      "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94"
+    }
+  }
+}
